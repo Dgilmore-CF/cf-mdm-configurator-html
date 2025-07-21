@@ -1,70 +1,89 @@
-import React, { useState, useEffect } from 'react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare WARP MDM Configurator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* A little extra style for better aesthetics */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://rsms.me/inter/inter.css');
+    </style>
+</head>
+<body class="bg-white min-h-screen font-sans text-gray-900">
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="bg-blue-50 border border-blue-200 text-blue-800 text-sm p-4 mb-8 rounded-lg" role="alert">
+            <p><span class="font-bold">Note:</span> This tool currently only supports Windows deployments.</p>
+        </div>
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Cloudflare WARP MDM Configurator</h1>
+            <p class="text-gray-600 mt-2">
+                Create a custom <code class="bg-gray-200 text-[#F38020] px-1 py-0.5 rounded">mdm.xml</code> file for deploying the WARP client.
+            </p>
+        </header>
 
-// Reusable InputField component
-const InputField = ({ id, label, type = "text", value, onChange, placeholder, description, children, checked }) => (
-    <div className="mb-6">
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-        {type === 'select' ? (
-            <select id={id} value={value} onChange={onChange} className="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
-                {children}
-            </select>
-        ) : type === 'checkbox' ? (
-             <label className="flex items-center space-x-3 cursor-pointer">
-                <input id={id} type="checkbox" checked={checked} onChange={onChange} className="h-5 w-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500" />
-                <span className="text-gray-700">Enable</span>
-            </label>
-        ) : (
-            <input
-                type={type}
-                id={id}
-                value={value}
-                onChange={onChange}
-                placeholder={placeholder}
-                className="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-        )}
-        {description && <p className="mt-2 text-xs text-gray-500">{description}</p>}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Form Section -->
+            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <div class="mb-6">
+                    <label for="mode-select" class="block text-sm font-medium text-gray-700 mb-1">Deployment Type</label>
+                    <select id="mode-select" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        <option value="single">Single Organization</option>
+                        <option value="multi">Multi-Organization</option>
+                    </select>
+                </div>
+                <div id="form-container" class="border-t border-gray-200 pt-4">
+                    <!-- Form content will be injected here by JavaScript -->
+                </div>
+            </div>
+
+            <!-- XML Output and Download Section -->
+            <div class="flex flex-col">
+                <div class="bg-gray-800 text-white p-6 rounded-lg shadow-lg flex-grow flex flex-col">
+                    <h2 class="text-lg font-semibold text-white mb-4">Generated mdm.xml</h2>
+                    <div class="bg-gray-900 rounded-md flex-grow relative">
+                        <pre class="w-full h-full text-sm text-cyan-300 p-4 overflow-auto absolute inset-0"><code id="xml-output"></code></pre>
+                    </div>
+                </div>
+                 <div class="mt-6">
+                    <button id="download-button" class="w-full bg-[#F38020] hover:bg-orange-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors duration-200">
+                        Download MDM.XML
+                    </button>
+                </div>
+            </div>
+        </div>
+         <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p>This is an unofficial tool. Always verify generated profiles before deploying.</p>
+            <p>Refer to the official <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/" target="_blank" rel="noopener noreferrer" class="text-orange-500 hover:underline">Cloudflare Documentation</a> for details.</p>
+        </footer>
     </div>
-);
 
+<script>
+    // --- TEMPLATES FOR FORMS ---
+    const singleOrgFormTemplate = `
+        <fieldset id="single-org-fieldset">
+            <legend class="text-lg font-semibold text-gray-900 mb-4">Single Organization Settings</legend>
+            <!-- All input fields will be here -->
+        </fieldset>
+    `;
 
-// Component for Single Organization Configuration
-const SingleOrgForm = ({ setXmlOutput }) => {
-    // State for Cloudflare WARP specific parameters
-    const [config, setConfig] = useState({
-        organization: '',
-        serviceMode: 'warp',
-        gatewayId: '',
-        supportUrl: '',
-        switchLocked: true,
-        autoConnect: 0,
-        allowUpdates: true,
-        dnsServers: '',
-        splitTunnelInclude: '',
-        splitTunnelExclude: '',
-        onboarding: false,
-        localDomainFallback: '',
-        captivePortal: true,
-        modeSwitchLocked: true,
-        enableDex: true,
-        enablePostQuantum: false,
-        overrideApiEndpoint: '',
-        overrideDohEndpoint: '',
-        overrideWarpEndpoint: '',
-        authClientId: '',
-        authClientSecret: '',
-    });
-
-    const handleInputChange = (e) => {
-        const { id, value, type, checked } = e.target;
-        setConfig(prev => ({
-            ...prev,
-            [id]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value)
-        }));
-    };
+    const multiOrgFormTemplate = `
+        <form id="multi-org-form">
+            <fieldset>
+                <legend class="text-lg font-semibold text-gray-900 mb-4">Add Organization Configuration</legend>
+                <!-- Inputs for a new multi-org config -->
+                <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors duration-200 mt-6">Add Additional Organization Configuration</button>
+            </fieldset>
+        </form>
+        <div id="multi-org-list-container" class="mt-8"></div>
+    `;
 
     const paramDocs = {
         organization: "Your organization's team name from the Zero Trust dashboard.",
+        displayName: "A user-friendly name for this configuration (e.g., Production).",
         serviceMode: "Sets the client's operational mode.",
         gatewayId: "Your Gateway unique ID. If you do not include this, the client will use the default Gateway configuration.",
         supportUrl: "A URL for users to access for support, like your internal help desk.",
@@ -85,16 +104,212 @@ const SingleOrgForm = ({ setXmlOutput }) => {
         authClientSecret: "The Client Secret of your service token."
     };
 
-    useEffect(() => {
-        const generateXml = () => {
-             const formatSimpleArray = (input) => {
-                if (!input || !input.trim()) return null;
-                const items = input.split(',').map(item => `        <string>${item.trim()}</string>`).join('\n');
-                return `    <array>\n${items}\n    </array>`;
-            };
+    const allFields = [
+        { id: 'organization', label: 'Team Name / Organization', placeholder: 'your-team-name', description: paramDocs.organization },
+        { id: 'displayName', label: 'Display Name', placeholder: 'Production Environment', description: paramDocs.displayName, multiOnly: true },
+        { id: 'authClientId', label: 'Auth Client ID', placeholder: 'Service Token Client ID', description: paramDocs.authClientId },
+        { id: 'authClientSecret', label: 'Auth Client Secret', placeholder: 'Service Token Client Secret', description: paramDocs.authClientSecret },
+        { id: 'serviceMode', label: 'Service Mode', type: 'select', options: ['warp', 'proxy', 'tunnel_only', 'posture_only'], description: paramDocs.serviceMode },
+        { id: 'gatewayId', label: 'Gateway Unique ID', placeholder: 'your-gateway-id', description: paramDocs.gatewayId },
+        { id: 'supportUrl', label: 'Support URL', placeholder: 'https://helpdesk.example.com', description: paramDocs.supportUrl },
+        { id: 'autoConnect', label: 'Auto Connect (minutes)', type: 'number', description: paramDocs.autoConnect },
+        { id: 'switchLocked', label: 'Lock WARP Switch', type: 'checkbox', description: paramDocs.switchLocked },
+        { id: 'modeSwitchLocked', label: 'Lock Service Mode Switch', type: 'checkbox', description: paramDocs.modeSwitchLocked },
+        { id: 'allowUpdates', label: 'Allow Auto Updates', type: 'checkbox', description: paramDocs.allowUpdates },
+        { id: 'onboarding', label: 'Disable Onboarding Flow', type: 'checkbox', description: paramDocs.onboarding },
+        { id: 'captivePortal', label: 'Captive Portal Detection', type: 'checkbox', description: paramDocs.captivePortal },
+        { id: 'enableDex', label: 'Enable Digital Experience Monitoring', type: 'checkbox', description: paramDocs.enableDex },
+        { id: 'enablePostQuantum', label: 'Enable Post-Quantum Cryptography', type: 'checkbox', description: paramDocs.enablePostQuantum },
+        { id: 'dnsServers', label: 'DNS Servers', placeholder: '1.1.1.1, 8.8.8.8', description: paramDocs.dnsServers },
+        { id: 'splitTunnelInclude', label: 'Split Tunnel - Include', placeholder: '192.168.1.0/24, example.com', description: paramDocs.splitTunnelInclude },
+        { id: 'splitTunnelExclude', label: 'Split Tunnel - Exclude', placeholder: '10.0.0.0/8', description: paramDocs.splitTunnelExclude },
+        { id: 'localDomainFallback', label: 'Local Domain Fallback', placeholder: 'example.com,*.internal.corp', description: paramDocs.localDomainFallback },
+    ];
 
-            const configItems = [
+    const chinaFields = [
+        { id: 'overrideApiEndpoint', label: 'Override API Endpoint', placeholder: '203.0.113.0', description: paramDocs.overrideEndpoint },
+        { id: 'overrideDohEndpoint', label: 'Override DoH Endpoint', placeholder: '203.0.113.0', description: paramDocs.overrideEndpoint },
+        { id: 'overrideWarpEndpoint', label: 'Override WARP Endpoint', placeholder: '203.0.113.0:0', description: paramDocs.overrideEndpoint },
+    ];
+
+    function createFieldHtml(field) {
+        const { id, label, type, placeholder, description, options } = field;
+        let inputHtml = '';
+        if (type === 'select') {
+            const optionsHtml = options.map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1).replace('_', ' ')}</option>`).join('');
+            inputHtml = `<select id="${id}" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${optionsHtml}</select>`;
+        } else if (type === 'checkbox') {
+            inputHtml = `<label class="flex items-center space-x-3 cursor-pointer"><input id="${id}" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500" /><span class="text-gray-700">Enable</span></label>`;
+        } else {
+            inputHtml = `<input type="${type || 'text'}" id="${id}" placeholder="${placeholder || ''}" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />`;
+        }
+        return `<div class="mb-6"><label for="${id}" class="block text-sm font-medium text-gray-700 mb-1">${label}</label>${inputHtml}${description ? `<p class="mt-2 text-xs text-gray-500">${description}</p>` : ''}</div>`;
+    }
+
+    // --- STATE MANAGEMENT ---
+    let appState = {
+        mode: 'single',
+        singleOrgConfig: {
+            organization: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0, allowUpdates: true, dnsServers: '',
+            splitTunnelInclude: '', splitTunnelExclude: '', onboarding: false, localDomainFallback: '', captivePortal: true, modeSwitchLocked: true,
+            enableDex: true, enablePostQuantum: false, overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: ''
+        },
+        multiOrgConfigs: [],
+        newMultiOrgConfig: {
+            organization: '', displayName: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0, allowUpdates: true, dnsServers: '',
+            splitTunnelInclude: '', splitTunnelExclude: '', onboarding: false, localDomainFallback: '', captivePortal: true, modeSwitchLocked: true,
+            enableDex: true, enablePostQuantum: false, overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: ''
+        }
+    };
+
+    // --- DOM REFERENCES ---
+    const modeSelect = document.getElementById('mode-select');
+    const formContainer = document.getElementById('form-container');
+    const xmlOutputEl = document.getElementById('xml-output');
+    const downloadButton = document.getElementById('download-button');
+
+    // --- RENDER/UPDATE FUNCTIONS ---
+    function render() {
+        formContainer.innerHTML = ''; // Clear previous form
+        if (appState.mode === 'single') {
+            let singleFormFields = allFields.filter(f => !f.multiOnly).map(createFieldHtml).join('');
+            let chinaFormFields = chinaFields.map(createFieldHtml).join('');
+            formContainer.innerHTML = `
+                <fieldset id="single-org-fieldset">
+                    <legend class="text-lg font-semibold text-gray-900 mb-4">Single Organization Settings</legend>
+                    ${singleFormFields}
+                    <fieldset class="mt-8 border-t border-gray-200 pt-4">
+                        <legend class="text-md font-semibold text-gray-800 mb-2">China Network Overrides (Optional)</legend>
+                        ${chinaFormFields}
+                    </fieldset>
+                </fieldset>`;
+            updateSingleFormValues();
+        } else {
+            let multiFormFields = allFields.map(createFieldHtml).join('');
+            let chinaFormFields = chinaFields.map(createFieldHtml).join('');
+            formContainer.innerHTML = `
+                <form id="multi-org-form">
+                    <fieldset>
+                        <legend class="text-lg font-semibold text-gray-900 mb-4">Add Organization Configuration</legend>
+                        ${multiFormFields}
+                         <fieldset class="mt-8 border-t border-gray-200 pt-4">
+                            <legend class="text-md font-semibold text-gray-800 mb-2">China Network Overrides (Optional)</legend>
+                            ${chinaFormFields}
+                        </fieldset>
+                        <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors duration-200 mt-6">Add Additional Organization Configuration</button>
+                    </fieldset>
+                </form>
+                <div id="multi-org-list-container" class="mt-8"></div>`;
+            updateMultiOrgList();
+            updateNewMultiFormValues();
+        }
+        addEventListeners();
+        generateXml();
+    }
+
+    function addEventListeners() {
+        if (appState.mode === 'single') {
+            document.querySelectorAll('#single-org-fieldset input, #single-org-fieldset select').forEach(el => {
+                const eventType = el.type === 'checkbox' ? 'change' : 'input';
+                el.addEventListener(eventType, (e) => {
+                    const { id, value, type, checked } = e.target;
+                    appState.singleOrgConfig[id] = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
+                    generateXml();
+                });
+            });
+        } else {
+            document.getElementById('multi-org-form').addEventListener('submit', handleAddMultiOrg);
+            document.querySelectorAll('#multi-org-form input, #multi-org-form select').forEach(el => {
+                 const eventType = el.type === 'checkbox' ? 'change' : 'input';
+                el.addEventListener(eventType, (e) => {
+                    const { id, value, type, checked } = e.target;
+                    appState.newMultiOrgConfig[id] = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
+                });
+            });
+        }
+    }
+
+    function updateSingleFormValues() {
+        for (const key in appState.singleOrgConfig) {
+            const el = document.getElementById(key);
+            if (el) {
+                if (el.type === 'checkbox') el.checked = appState.singleOrgConfig[key];
+                else el.value = appState.singleOrgConfig[key];
+            }
+        }
+    }
+    
+    function updateNewMultiFormValues() {
+        for (const key in appState.newMultiOrgConfig) {
+            const el = document.getElementById(key);
+            if (el) {
+                if (el.type === 'checkbox') el.checked = appState.newMultiOrgConfig[key];
+                else el.value = appState.newMultiOrgConfig[key];
+            }
+        }
+    }
+
+    function updateMultiOrgList() {
+        const container = document.getElementById('multi-org-list-container');
+        if (!container) return;
+        if (appState.multiOrgConfigs.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+        container.innerHTML = `
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-t border-gray-200 pt-4">Current Configurations:</h3>
+            <ul class="space-y-3">
+                ${appState.multiOrgConfigs.map((config, index) => `
+                    <li class="bg-white border border-gray-200 p-4 rounded-md shadow-sm">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="font-bold text-gray-900">${config.displayName} <span class="font-normal text-gray-600">(${config.organization})</span></p>
+                                <p class="text-sm text-gray-500 mt-1">Mode: ${config.serviceMode}, Gateway: ${config.gatewayId || 'Default'}</p>
+                            </div>
+                            <button data-index="${index}" class="remove-btn text-red-600 hover:text-red-500 font-semibold text-sm ml-4 flex-shrink-0">Remove</button>
+                        </div>
+                    </li>
+                `).join('')}
+            </ul>`;
+        document.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', handleRemoveMultiOrg));
+    }
+
+    function handleAddMultiOrg(e) {
+        e.preventDefault();
+        const { organization, displayName } = appState.newMultiOrgConfig;
+        if (organization && displayName) {
+            appState.multiOrgConfigs.push({ ...appState.newMultiOrgConfig });
+            // Reset the new config form state
+            appState.newMultiOrgConfig = {
+                organization: '', displayName: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0, allowUpdates: true, dnsServers: '',
+                splitTunnelInclude: '', splitTunnelExclude: '', onboarding: false, localDomainFallback: '', captivePortal: true, modeSwitchLocked: true,
+                enableDex: true, enablePostQuantum: false, overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: ''
+            };
+            updateMultiOrgList();
+            updateNewMultiFormValues();
+            generateXml();
+        }
+    }
+
+    function handleRemoveMultiOrg(e) {
+        const index = parseInt(e.target.dataset.index, 10);
+        appState.multiOrgConfigs.splice(index, 1);
+        updateMultiOrgList();
+        generateXml();
+    }
+
+    function generateXml() {
+        let xmlString = '';
+        const formatSimpleArray = (input) => {
+            if (!input || !input.trim()) return null;
+            const items = input.split(',').map(item => `        <string>${item.trim()}</string>`).join('\n');
+            return `    <array>\n${items}\n    </array>`;
+        };
+        
+        const generateDictItems = (config) => {
+             const items = [
                 { key: 'organization', value: config.organization, type: 'string' },
+                { key: 'display_name', value: config.displayName, type: 'string' },
                 { key: 'service_mode', value: config.serviceMode, type: 'string' },
                 { key: 'gateway_id', value: config.gatewayId, type: 'string' },
                 { key: 'auth_client_id', value: config.authClientId, type: 'string' },
@@ -116,21 +331,23 @@ const SingleOrgForm = ({ setXmlOutput }) => {
                 { key: 'override_doh_endpoint', value: config.overrideDohEndpoint, type: 'string' },
                 { key: 'override_warp_endpoint', value: config.overrideWarpEndpoint, type: 'string' },
             ];
+            return items.filter(item => {
+                if (item.value === null || item.value === undefined) return false;
+                if (typeof item.value === 'string' && item.value.trim() === '') return false;
+                if (item.key === 'auto_connect') return true;
+                if (item.type === 'boolean' && item.value === false) {
+                    const keysToKeepWhenFalse = ['switch_locked', 'mode_switch_locked', 'allow_updates', 'onboarding', 'captive_portal', 'enable_dex', 'enable_post_quantum'];
+                    return keysToKeepWhenFalse.includes(item.key);
+                }
+                return true;
+            });
+        };
 
-            const warpConfigDict = configItems
-                .filter(item => {
-                    if (item.value === null || item.value === undefined) return false;
-                    if (typeof item.value === 'string' && item.value.trim() === '') return false;
-                    // Keep auto_connect even if it is 0
-                    if (item.key === 'auto_connect') return true;
-                    // Filter out boolean `false` values unless it's a lock switch or other specific keys
-                    if (item.type === 'boolean' && item.value === false) {
-                        const keysToKeepWhenFalse = ['switch_locked', 'mode_switch_locked', 'allow_updates', 'onboarding', 'captive_portal', 'enable_dex', 'enable_post_quantum'];
-                        return keysToKeepWhenFalse.includes(item.key);
-                    }
-                    return true;
-                })
-                .map(item => {
+        if (appState.mode === 'single') {
+            if (!appState.singleOrgConfig.organization) {
+                xmlString = '<!-- Enter an Organization Name to generate the XML file. -->';
+            } else {
+                const dictItems = generateDictItems(appState.singleOrgConfig).map(item => {
                     let valueTag;
                     switch (item.type) {
                         case 'string': valueTag = `    <string>${item.value}</string>`; break;
@@ -140,331 +357,64 @@ const SingleOrgForm = ({ setXmlOutput }) => {
                         default: valueTag = '';
                     }
                     return `    <key>${item.key}</key>\n${valueTag}`;
-                })
-                .join('\n');
-            
-            const fullXml = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n${warpConfigDict}\n</dict>`;
-            setXmlOutput(fullXml);
-        };
-        generateXml();
-    }, [config, setXmlOutput]);
-
-    return (
-        <fieldset>
-            <legend className="text-lg font-semibold text-gray-900 mb-4">Single Organization Settings</legend>
-            <InputField id="organization" label="Team Name / Organization" value={config.organization} onChange={handleInputChange} placeholder="your-team-name" description={paramDocs.organization} />
-            <InputField id="authClientId" label="Auth Client ID" value={config.authClientId} onChange={handleInputChange} placeholder="Service Token Client ID" description={paramDocs.authClientId} />
-            <InputField id="authClientSecret" label="Auth Client Secret" value={config.authClientSecret} onChange={handleInputChange} placeholder="Service Token Client Secret" description={paramDocs.authClientSecret} />
-            <InputField id="serviceMode" label="Service Mode" type="select" value={config.serviceMode} onChange={handleInputChange} description={paramDocs.serviceMode}>
-                <option value="warp">WARP</option>
-                <option value="proxy">Proxy</option>
-                <option value="tunnel_only">Tunnel Only</option>
-                <option value="posture_only">Posture Only</option>
-            </InputField>
-            <InputField id="gatewayId" label="Gateway Unique ID" value={config.gatewayId} onChange={handleInputChange} placeholder="your-gateway-id" description={paramDocs.gatewayId} />
-            <InputField id="supportUrl" label="Support URL" value={config.supportUrl} onChange={handleInputChange} placeholder="https://helpdesk.example.com" description={paramDocs.supportUrl} />
-            <InputField id="autoConnect" label="Auto Connect (minutes)" type="number" value={config.autoConnect} onChange={handleInputChange} description={paramDocs.autoConnect} />
-            <InputField id="switchLocked" label="Lock WARP Switch" type="checkbox" checked={config.switchLocked} onChange={handleInputChange} description={paramDocs.switchLocked} />
-            <InputField id="modeSwitchLocked" label="Lock Service Mode Switch" type="checkbox" checked={config.modeSwitchLocked} onChange={handleInputChange} description={paramDocs.modeSwitchLocked} />
-            <InputField id="allowUpdates" label="Allow Auto Updates" type="checkbox" checked={config.allowUpdates} onChange={handleInputChange} description={paramDocs.allowUpdates} />
-            <InputField id="onboarding" label="Disable Onboarding Flow" type="checkbox" checked={config.onboarding} onChange={handleInputChange} description={paramDocs.onboarding} />
-            <InputField id="captivePortal" label="Captive Portal Detection" type="checkbox" checked={config.captivePortal} onChange={handleInputChange} description={paramDocs.captivePortal} />
-            <InputField id="enableDex" label="Enable Digital Experience Monitoring" type="checkbox" checked={config.enableDex} onChange={handleInputChange} description={paramDocs.enableDex} />
-            <InputField id="enablePostQuantum" label="Enable Post-Quantum Cryptography" type="checkbox" checked={config.enablePostQuantum} onChange={handleInputChange} description={paramDocs.enablePostQuantum} />
-            <InputField id="dnsServers" label="DNS Servers" value={config.dnsServers} onChange={handleInputChange} placeholder="1.1.1.1, 8.8.8.8" description={paramDocs.dnsServers} />
-            <InputField id="splitTunnelInclude" label="Split Tunnel - Include" value={config.splitTunnelInclude} onChange={handleInputChange} placeholder="192.168.1.0/24, example.com" description={paramDocs.splitTunnelInclude} />
-            <InputField id="splitTunnelExclude" label="Split Tunnel - Exclude" value={config.splitTunnelExclude} onChange={handleInputChange} placeholder="10.0.0.0/8" description={paramDocs.splitTunnelExclude} />
-            <InputField id="localDomainFallback" label="Local Domain Fallback" value={config.localDomainFallback} onChange={handleInputChange} placeholder="example.com,*.internal.corp" description={paramDocs.localDomainFallback} />
-            
-            <fieldset className="mt-8 border-t border-gray-200 pt-4">
-                <legend className="text-md font-semibold text-gray-800 mb-2">China Network Overrides (Optional)</legend>
-                 <InputField id="overrideApiEndpoint" label="Override API Endpoint" value={config.overrideApiEndpoint} onChange={handleInputChange} placeholder="203.0.113.0" description={paramDocs.overrideEndpoint} />
-                 <InputField id="overrideDohEndpoint" label="Override DoH Endpoint" value={config.overrideDohEndpoint} onChange={handleInputChange} placeholder="203.0.113.0" description={paramDocs.overrideEndpoint} />
-                 <InputField id="overrideWarpEndpoint" label="Override WARP Endpoint" value={config.overrideWarpEndpoint} onChange={handleInputChange} placeholder="203.0.113.0:0" description={paramDocs.overrideEndpoint} />
-            </fieldset>
-        </fieldset>
-    );
-};
-
-// Component for Multi-Organization Configuration
-const MultiOrgForm = ({ setXmlOutput }) => {
-    const initialNewConfigState = {
-        organization: '',
-        displayName: '',
-        serviceMode: 'warp',
-        gatewayId: '',
-        supportUrl: '',
-        switchLocked: true,
-        autoConnect: 0,
-        allowUpdates: true,
-        dnsServers: '',
-        splitTunnelInclude: '',
-        splitTunnelExclude: '',
-        onboarding: false,
-        localDomainFallback: '',
-        captivePortal: true,
-        modeSwitchLocked: true,
-        enableDex: true,
-        enablePostQuantum: false,
-        overrideApiEndpoint: '',
-        overrideDohEndpoint: '',
-        overrideWarpEndpoint: '',
-        authClientId: '',
-        authClientSecret: '',
-    };
-
-    const [configs, setConfigs] = useState([]);
-    const [newConfig, setNewConfig] = useState(initialNewConfigState);
-    
-    // Docs are shared but we can define them here for simplicity
-    const paramDocs = {
-        organization: "The organization's team name.",
-        displayName: "A user-friendly name for this configuration (e.g., Production).",
-        authClientId: "The Client ID of your service token.",
-        authClientSecret: "The Client Secret of your service token."
-    };
-
-    useEffect(() => {
-        const generateXml = () => {
-            if (configs.length === 0) {
-                setXmlOutput('<!-- Add an organization configuration to generate the XML file. -->');
-                return;
-            }
-
-            const configDicts = configs.map(config => {
-                const formatSimpleArray = (input) => {
-                    if (!input || !input.trim()) return null;
-                    const items = input.split(',').map(item => `        <string>${item.trim()}</string>`).join('\n');
-                    return `    <array>\n${items}\n    </array>`;
-                };
-
-                const items = [
-                    { key: 'organization', value: config.organization, type: 'string' },
-                    { key: 'display_name', value: config.displayName, type: 'string' },
-                    { key: 'service_mode', value: config.serviceMode, type: 'string' },
-                    { key: 'gateway_id', value: config.gatewayId, type: 'string' },
-                    { key: 'auth_client_id', value: config.authClientId, type: 'string' },
-                    { key: 'auth_client_secret', value: config.authClientSecret, type: 'string' },
-                    { key: 'support_url', value: config.supportUrl, type: 'string' },
-                    { key: 'switch_locked', value: config.switchLocked, type: 'boolean' },
-                    { key: 'mode_switch_locked', value: config.modeSwitchLocked, type: 'boolean' },
-                    { key: 'auto_connect', value: config.autoConnect, type: 'integer' },
-                    { key: 'allow_updates', value: config.allowUpdates, type: 'boolean' },
-                    { key: 'onboarding', value: config.onboarding, type: 'boolean' },
-                    { key: 'captive_portal', value: config.captivePortal, type: 'boolean' },
-                    { key: 'enable_dex', value: config.enableDex, type: 'boolean' },
-                    { key: 'enable_post_quantum', value: config.enablePostQuantum, type: 'boolean' },
-                    { key: 'dns_servers', value: formatSimpleArray(config.dnsServers), type: 'array' },
-                    { key: 'split_tunnel_include', value: formatSimpleArray(config.splitTunnelInclude), type: 'array' },
-                    { key: 'split_tunnel_exclude', value: formatSimpleArray(config.splitTunnelExclude), type: 'array' },
-                    { key: 'local_domain_fallback', value: formatSimpleArray(config.localDomainFallback), type: 'array' },
-                    { key: 'override_api_endpoint', value: config.overrideApiEndpoint, type: 'string' },
-                    { key: 'override_doh_endpoint', value: config.overrideDohEndpoint, type: 'string' },
-                    { key: 'override_warp_endpoint', value: config.overrideWarpEndpoint, type: 'string' },
-                ]
-                .filter(item => {
-                    if (item.value === null || item.value === undefined) return false;
-                    if (typeof item.value === 'string' && item.value.trim() === '') return false;
-                     // Keep auto_connect even if it is 0
-                    if (item.key === 'auto_connect') return true;
-                    // Filter out boolean `false` values unless it's a lock switch or other specific keys
-                    if (item.type === 'boolean' && item.value === false) {
-                        const keysToKeepWhenFalse = ['switch_locked', 'mode_switch_locked', 'allow_updates', 'onboarding', 'captive_portal', 'enable_dex', 'enable_post_quantum'];
-                        return keysToKeepWhenFalse.includes(item.key);
-                    }
-                    return true;
-                })
-                .map(item => {
-                    let valueTag;
-                    switch (item.type) {
-                        case 'string': valueTag = `      <string>${item.value}</string>`; break;
-                        case 'integer': valueTag = `      <integer>${item.value}</integer>`; break;
-                        case 'boolean': valueTag = `      ${item.value ? '<true/>' : '<false/>'}`; break;
-                        case 'array': valueTag = item.value; break;
-                        default: valueTag = '';
-                    }
-                    return `      <key>${item.key}</key>\n${valueTag}`;
                 }).join('\n');
-
-                return `    <dict>\n${items}\n    </dict>`;
-            }).join('\n');
-
-            const fullXml = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n  <key>configs</key>\n  <array>\n${configDicts}\n  </array>\n</dict>`;
-            setXmlOutput(fullXml);
-        };
-        generateXml();
-    }, [configs, setXmlOutput]);
-    
-    const handleInputChange = (e) => {
-        const { id, value, type, checked } = e.target;
-        setNewConfig(prev => ({
-            ...prev,
-            [id]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value)
-        }));
-    };
-
-    const handleAddConfig = (e) => {
-        e.preventDefault();
-        if (newConfig.organization && newConfig.displayName) {
-            setConfigs([...configs, newConfig]);
-            setNewConfig(initialNewConfigState);
-        }
-    };
-
-    const handleRemoveConfig = (indexToRemove) => {
-        setConfigs(configs.filter((_, index) => index !== indexToRemove));
-    };
-
-    return (
-        <>
-            <form onSubmit={handleAddConfig}>
-                <fieldset>
-                    <legend className="text-lg font-semibold text-gray-900 mb-4">Add Organization Configuration</legend>
-                    <InputField id="organization" label="Organization Name" value={newConfig.organization} onChange={handleInputChange} placeholder="your-team-name" description={paramDocs.organization} />
-                    <InputField id="displayName" label="Display Name" value={newConfig.displayName} onChange={handleInputChange} placeholder="Production Environment" description={paramDocs.displayName} />
-                    <InputField id="authClientId" label="Auth Client ID" value={newConfig.authClientId} onChange={handleInputChange} placeholder="Service Token Client ID" description={paramDocs.authClientId} />
-                    <InputField id="authClientSecret" label="Auth Client Secret" value={newConfig.authClientSecret} onChange={handleInputChange} placeholder="Service Token Client Secret" description={paramDocs.authClientSecret} />
-                    <InputField id="serviceMode" label="Service Mode" type="select" value={newConfig.serviceMode} onChange={handleInputChange} >
-                        <option value="warp">WARP</option>
-                        <option value="proxy">Proxy</option>
-                        <option value="tunnel_only">Tunnel Only</option>
-                        <option value="posture_only">Posture Only</option>
-                    </InputField>
-                    <InputField id="gatewayId" label="Gateway Unique ID" value={newConfig.gatewayId} onChange={handleInputChange} placeholder="your-gateway-id" />
-                    <InputField id="supportUrl" label="Support URL" value={newConfig.supportUrl} onChange={handleInputChange} placeholder="https://helpdesk.example.com" />
-                    <InputField id="autoConnect" label="Auto Connect (minutes)" type="number" value={newConfig.autoConnect} onChange={handleInputChange} />
-                    <InputField id="switchLocked" label="Lock WARP Switch" type="checkbox" checked={newConfig.switchLocked} onChange={handleInputChange} />
-                    <InputField id="modeSwitchLocked" label="Lock Service Mode Switch" type="checkbox" checked={newConfig.modeSwitchLocked} onChange={handleInputChange} />
-                    <InputField id="allowUpdates" label="Allow Auto Updates" type="checkbox" checked={newConfig.allowUpdates} onChange={handleInputChange} />
-                    <InputField id="onboarding" label="Disable Onboarding Flow" type="checkbox" checked={newConfig.onboarding} onChange={handleInputChange} />
-                    <InputField id="captivePortal" label="Captive Portal Detection" type="checkbox" checked={newConfig.captivePortal} onChange={handleInputChange} />
-                    <InputField id="enableDex" label="Enable Digital Experience Monitoring" type="checkbox" checked={newConfig.enableDex} onChange={handleInputChange} />
-                    <InputField id="enablePostQuantum" label="Enable Post-Quantum Cryptography" type="checkbox" checked={newConfig.enablePostQuantum} onChange={handleInputChange} />
-                    <InputField id="dnsServers" label="DNS Servers" value={newConfig.dnsServers} onChange={handleInputChange} placeholder="1.1.1.1, 8.8.8.8" />
-                    <InputField id="splitTunnelInclude" label="Split Tunnel - Include" value={newConfig.splitTunnelInclude} onChange={handleInputChange} placeholder="192.168.1.0/24, example.com" />
-                    <InputField id="splitTunnelExclude" label="Split Tunnel - Exclude" value={newConfig.splitTunnelExclude} onChange={handleInputChange} placeholder="10.0.0.0/8" />
-                    <InputField id="localDomainFallback" label="Local Domain Fallback" value={newConfig.localDomainFallback} onChange={handleInputChange} placeholder="example.com,*.internal.corp" />
-                    
-                    <fieldset className="mt-8 border-t border-gray-200 pt-4">
-                        <legend className="text-md font-semibold text-gray-800 mb-2">China Network Overrides (Optional)</legend>
-                        <InputField id="overrideApiEndpoint" label="Override API Endpoint" value={newConfig.overrideApiEndpoint} onChange={handleInputChange} placeholder="203.0.113.0" />
-                        <InputField id="overrideDohEndpoint" label="Override DoH Endpoint" value={newConfig.overrideDohEndpoint} onChange={handleInputChange} placeholder="203.0.113.0" />
-                        <InputField id="overrideWarpEndpoint" label="Override WARP Endpoint" value={newConfig.overrideWarpEndpoint} onChange={handleInputChange} placeholder="203.0.113.0:0" />
-                    </fieldset>
-
-                    <button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors duration-200 mt-6">Add Additional Organization Configuration</button>
-                </fieldset>
-            </form>
-
-            {configs.length > 0 && (
-                <div className="mt-8">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 border-t border-gray-200 pt-4">Current Configurations:</h3>
-                    <ul className="space-y-3">
-                        {configs.map((config, index) => (
-                            <li key={index} className="bg-white border border-gray-200 p-4 rounded-md shadow-sm">
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="font-bold text-gray-900">{config.displayName} <span className="font-normal text-gray-600">({config.organization})</span></p>
-                                        <p className="text-sm text-gray-500 mt-1">Mode: {config.serviceMode}, Gateway: {config.gatewayId || 'Default'}</p>
-                                    </div>
-                                    <button onClick={() => handleRemoveConfig(index)} className="text-red-600 hover:text-red-500 font-semibold text-sm ml-4 flex-shrink-0">Remove</button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-        </>
-    );
-};
-
-// Main Application Component
-export default function App() {
-    const [mode, setMode] = useState('single'); // 'single' or 'multi'
-    const [xmlOutput, setXmlOutput] = useState('');
-    const [isDownloadDisabled, setIsDownloadDisabled] = useState(true);
-
-    useEffect(() => {
-        // Reset XML output when mode changes
-        if (mode === 'single') {
-            // Let the SingleOrgForm generate its initial (likely empty) XML
+                xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n${dictItems}\n</dict>`;
+            }
         } else {
-            setXmlOutput('<!-- Add an organization configuration to generate the XML file. -->');
+            if (appState.multiOrgConfigs.length === 0) {
+                 xmlString = '<!-- Add an organization configuration to generate the XML file. -->';
+            } else {
+                const configDicts = appState.multiOrgConfigs.map(config => {
+                    const items = generateDictItems(config).map(item => {
+                         let valueTag;
+                        switch (item.type) {
+                            case 'string': valueTag = `      <string>${item.value}</string>`; break;
+                            case 'integer': valueTag = `      <integer>${item.value}</integer>`; break;
+                            case 'boolean': valueTag = `      ${item.value ? '<true/>' : '<false/>'}`; break;
+                            case 'array': valueTag = item.value; break; // This needs adjustment for indentation
+                            default: valueTag = '';
+                        }
+                        // Adjust indentation for arrays within multi-org
+                        if (item.type === 'array') {
+                            valueTag = valueTag.replace(/    /g, '      ').replace(/      <string>/g, '        <string>');
+                        }
+                        return `      <key>${item.key}</key>\n${valueTag}`;
+                    }).join('\n');
+                    return `    <dict>\n${items}\n    </dict>`;
+                }).join('\n');
+                xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n  <key>configs</key>\n  <array>\n${configDicts}\n  </array>\n</dict>`;
+            }
         }
-    }, [mode]);
 
-    useEffect(() => {
-        setIsDownloadDisabled(xmlOutput.startsWith('<!--') || xmlOutput === '');
-    }, [xmlOutput]);
-    
-    const handleDownload = () => {
-        const blob = new Blob([xmlOutput], { type: 'application/xml;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'mdm.xml';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    };
+        xmlOutputEl.textContent = xmlString;
+        downloadButton.disabled = xmlString.startsWith('<!--');
+    }
 
-    return (
-        <div className="bg-white min-h-screen font-sans text-gray-900 p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">
-                <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm p-4 mb-8 rounded-lg" role="alert">
-                    <p><span className="font-bold">Note:</span> This tool currently only supports Windows deployments.</p>
-                </div>
-                <header className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Cloudflare WARP MDM Configurator</h1>
-                    <p className="text-gray-600 mt-2">
-                        Create a custom <code className="bg-gray-200 text-[#F38020] px-1 py-0.5 rounded">mdm.xml</code> file for deploying the WARP client.
-                    </p>
-                </header>
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const modeSelect = document.getElementById('mode-select');
+        const downloadButton = document.getElementById('download-button');
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Form Section */}
-                    <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                        <div className="mb-6">
-                            <label htmlFor="mode-select" className="block text-sm font-medium text-gray-700 mb-1">Deployment Type</label>
-                            <select id="mode-select" value={mode} onChange={e => setMode(e.target.value)} className="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                <option value="single">Single Organization</option>
-                                <option value="multi">Multi-Organization</option>
-                            </select>
-                        </div>
-                        <div className="border-t border-gray-200 pt-4">
-                           {mode === 'single' ? <SingleOrgForm setXmlOutput={setXmlOutput} /> : <MultiOrgForm setXmlOutput={setXmlOutput} />}
-                        </div>
-                    </div>
+        modeSelect.addEventListener('change', (e) => {
+            appState.mode = e.target.value;
+            render();
+        });
 
-                    {/* XML Output and Download Section */}
-                    <div className="flex flex-col">
-                        <div className="bg-gray-800 text-white p-6 rounded-lg shadow-lg flex-grow flex flex-col">
-                            <h2 className="text-lg font-semibold text-white mb-4">Generated mdm.xml</h2>
-                            <div className="bg-gray-900 rounded-md flex-grow relative">
-                                <pre className="w-full h-full text-sm text-cyan-300 p-4 overflow-auto absolute inset-0">
-                                    <code>
-                                        {xmlOutput}
-                                    </code>
-                                </pre>
-                            </div>
-                        </div>
-                         <div className="mt-6">
-                            <button
-                                onClick={handleDownload}
-                                disabled={isDownloadDisabled}
-                                className="w-full bg-[#F38020] hover:bg-orange-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors duration-200"
-                            >
-                                Download MDM.XML
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                 <footer className="text-center mt-12 text-gray-500 text-sm">
-                    <p>This is an unofficial tool. Always verify generated profiles before deploying.</p>
-                    <p>Refer to the official <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">Cloudflare Documentation</a> for details.</p>
-                </footer>
-            </div>
-        </div>
-    );
-}
+        downloadButton.addEventListener('click', () => {
+            const blob = new Blob([xmlOutputEl.textContent], { type: 'application/xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'mdm.xml';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        render(); // Initial render
+    });
+</script>
+
+</body>
+</html>
