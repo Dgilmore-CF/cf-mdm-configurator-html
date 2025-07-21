@@ -62,25 +62,8 @@
     </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', () => {
     // --- TEMPLATES FOR FORMS ---
-    const singleOrgFormTemplate = `
-        <fieldset id="single-org-fieldset">
-            <legend class="text-lg font-semibold text-gray-900 mb-4">Single Organization Settings</legend>
-            <!-- All input fields will be here -->
-        </fieldset>
-    `;
-
-    const multiOrgFormTemplate = `
-        <form id="multi-org-form">
-            <fieldset>
-                <legend class="text-lg font-semibold text-gray-900 mb-4">Add Organization Configuration</legend>
-                <!-- Inputs for a new multi-org config -->
-                <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors duration-200 mt-6">Add Additional Organization Configuration</button>
-            </fieldset>
-        </form>
-        <div id="multi-org-list-container" class="mt-8"></div>
-    `;
-
     const paramDocs = {
         organization: "Your organization's team name from the Zero Trust dashboard.",
         displayName: "A user-friendly name for this configuration (e.g., Production).",
@@ -136,7 +119,7 @@
         const { id, label, type, placeholder, description, options } = field;
         let inputHtml = '';
         if (type === 'select') {
-            const optionsHtml = options.map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1).replace('_', ' ')}</option>`).join('');
+            const optionsHtml = options.map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1).replace(/_/g, ' ')}</option>`).join('');
             inputHtml = `<select id="${id}" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${optionsHtml}</select>`;
         } else if (type === 'checkbox') {
             inputHtml = `<label class="flex items-center space-x-3 cursor-pointer"><input id="${id}" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500" /><span class="text-gray-700">Enable</span></label>`;
@@ -391,29 +374,25 @@
     }
 
     // --- INITIALIZATION ---
-    document.addEventListener('DOMContentLoaded', () => {
-        const modeSelect = document.getElementById('mode-select');
-        const downloadButton = document.getElementById('download-button');
-
-        modeSelect.addEventListener('change', (e) => {
-            appState.mode = e.target.value;
-            render();
-        });
-
-        downloadButton.addEventListener('click', () => {
-            const blob = new Blob([xmlOutputEl.textContent], { type: 'application/xml;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'mdm.xml';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        });
-
-        render(); // Initial render
+    modeSelect.addEventListener('change', (e) => {
+        appState.mode = e.target.value;
+        render();
     });
+
+    downloadButton.addEventListener('click', () => {
+        const blob = new Blob([xmlOutputEl.textContent], { type: 'application/xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'mdm.xml';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    render(); // Initial render
+});
 </script>
 
 </body>
