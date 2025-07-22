@@ -4,66 +4,154 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloudflare WARP MDM Configurator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* A little extra style for better aesthetics */
+        /* --- Base & Typography --- */
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            background-color: #ffffff;
+            color: #1f2937;
+            margin: 0;
+            line-height: 1.5;
         }
-        @import url('https://rsms.me/inter/inter.css');
+        .container {
+            max-width: 1280px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1rem;
+        }
+        @media (min-width: 640px) { .container { padding: 1.5rem; } }
+        @media (min-width: 1024px) { .container { padding: 2rem; } }
+
+        h1 { font-size: 1.875rem; font-weight: 700; color: #111827; }
+        h2 { font-size: 1.125rem; font-weight: 600; color: #ffffff; margin-bottom: 1rem;}
+        p { color: #4b5563; margin-top: 0.5rem; }
+        code { background-color: #f3f4f6; color: #F38020; padding: 0.125rem 0.25rem; border-radius: 0.25rem; font-family: monospace; }
+        a { color: #F97316; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        fieldset { border: none; padding: 0; margin: 0; }
+        legend { font-size: 1.125rem; font-weight: 600; color: #111827; margin-bottom: 1rem; padding: 0; }
+        label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
+        
+        /* --- Layout --- */
+        .grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+        @media (min-width: 1024px) { .grid { grid-template-columns: 1fr 1fr; } }
+        .flex-col { display: flex; flex-direction: column; }
+        .flex-grow { flex-grow: 1; }
+
+        /* --- Components --- */
+        .header, .footer { margin-bottom: 2rem; }
+        .footer { margin-top: 3rem; text-align: center; font-size: 0.875rem; color: #6b7281; }
+        .disclaimer-box { background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 0.875rem; padding: 1rem; margin-bottom: 2rem; border-radius: 0.5rem; }
+        .disclaimer-box .font-bold { font-weight: 700; }
+        .form-section { background-color: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; }
+        .xml-section { background-color: #1f2937; color: #ffffff; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .xml-preview-container { background-color: #111827; border-radius: 0.375rem; flex-grow: 1; position: relative; }
+        .xml-preview { width: 100%; height: 100%; font-family: monospace; font-size: 0.875rem; color: #6ee7b7; padding: 1rem; overflow: auto; position: absolute; top: 0; left: 0; margin: 0; white-space: pre-wrap; }
+        
+        /* --- Form Elements --- */
+        .form-input, .form-select {
+            width: 100%;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            padding: 0.5rem 0.75rem;
+            color: #111827;
+            box-sizing: border-box;
+        }
+        .form-input:focus, .form-select:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 2px #fb923c;
+        }
+        .form-checkbox { height: 1.25rem; width: 1.25rem; border-radius: 0.25rem; border-color: #d1d5db; color: #F97316; }
+        .form-checkbox:focus { box-shadow: 0 0 0 2px #fb923c; }
+        .checkbox-label { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; }
+        .input-group { margin-bottom: 1.5rem; }
+        .input-description { margin-top: 0.5rem; font-size: 0.75rem; color: #6b7281; }
+        .form-divider { border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: 1rem; }
+
+        /* --- Buttons --- */
+        .button {
+            width: 100%;
+            color: #ffffff;
+            font-weight: 700;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            transition: background-color 0.2s;
+        }
+        .button-primary { background-color: #F38020; }
+        .button-primary:hover { background-color: #ea580c; }
+        .button-secondary { background-color: #F97316; }
+        .button-secondary:hover { background-color: #ea580c; }
+        .button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+        .button-remove { color: #dc2626; font-weight: 600; font-size: 0.875rem; background: none; box-shadow: none; }
+        .button-remove:hover { color: #b91c1c; }
+        
+        /* --- Multi-Org List --- */
+        .multi-org-list-container { margin-top: 2rem; }
+        .multi-org-list-header { font-size: 1.125rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem; border-top: 1px solid #e5e7eb; padding-top: 1rem; }
+        .multi-org-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+        .multi-org-list-item { background-color: #ffffff; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+        .list-item-content { display: flex; align-items: flex-start; justify-content: space-between; }
+        .list-item-details .font-bold { font-weight: 700; color: #111827; }
+        .list-item-details .font-normal { font-weight: 400; color: #4b5563; }
+        .list-item-details p { margin: 0; margin-top: 0.25rem; }
     </style>
 </head>
-<body class="bg-white min-h-screen font-sans text-gray-900">
-    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div class="bg-blue-50 border border-blue-200 text-blue-800 text-sm p-4 mb-8 rounded-lg" role="alert">
+<body>
+    <div class="container">
+        <div class="disclaimer-box">
             <p><span class="font-bold">Note:</span> This tool currently only supports Windows deployments.</p>
         </div>
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Cloudflare WARP MDM Configurator</h1>
-            <p class="text-gray-600 mt-2">
-                Create a custom <code class="bg-gray-200 text-[#F38020] px-1 py-0.5 rounded">mdm.xml</code> file for deploying the WARP client.
+        <header class="header">
+            <h1>Cloudflare WARP MDM Configurator</h1>
+            <p>
+                Create a custom <code>mdm.xml</code> file for deploying the WARP client.
             </p>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="grid">
             <!-- Form Section -->
-            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <div class="mb-6">
-                    <label for="mode-select" class="block text-sm font-medium text-gray-700 mb-1">Deployment Type</label>
-                    <select id="mode-select" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <div class="form-section">
+                <div class="input-group">
+                    <label for="mode-select">Deployment Type</label>
+                    <select id="mode-select" class="form-select">
                         <option value="single">Single Organization</option>
                         <option value="multi">Multi-Organization</option>
                     </select>
                 </div>
-                <div id="form-container" class="border-t border-gray-200 pt-4">
+                <div id="form-container" class="form-divider">
                     <!-- Form content will be injected here by JavaScript -->
                 </div>
             </div>
 
             <!-- XML Output and Download Section -->
-            <div class="flex flex-col">
-                <div class="bg-gray-800 text-white p-6 rounded-lg shadow-lg flex-grow flex flex-col">
-                    <h2 class="text-lg font-semibold text-white mb-4">Generated mdm.xml</h2>
-                    <div class="bg-gray-900 rounded-md flex-grow relative">
-                        <pre class="w-full h-full text-sm text-cyan-300 p-4 overflow-auto absolute inset-0"><code id="xml-output"></code></pre>
+            <div class="flex-col">
+                <div class="xml-section flex-col flex-grow">
+                    <h2>Generated mdm.xml</h2>
+                    <div class="xml-preview-container">
+                        <pre><code id="xml-output" class="xml-preview"></code></pre>
                     </div>
                 </div>
-                 <div class="mt-6">
-                    <button id="download-button" class="w-full bg-[#F38020] hover:bg-orange-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors duration-200">
+                 <div style="margin-top: 1.5rem;">
+                    <button id="download-button" class="button button-primary">
                         Download MDM.XML
                     </button>
                 </div>
             </div>
         </div>
-         <footer class="text-center mt-12 text-gray-500 text-sm">
+         <footer class="footer">
             <p>This is an unofficial tool. Always verify generated profiles before deploying.</p>
-            <p>Refer to the official <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/" target="_blank" rel="noopener noreferrer" class="text-orange-500 hover:underline">Cloudflare Documentation</a> for details.</p>
+            <p>Refer to the official <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/">Cloudflare Documentation</a> for details.</p>
         </footer>
     </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- TEMPLATES FOR FORMS ---
     const paramDocs = {
         organization: "Your organization's team name from the Zero Trust dashboard.",
         displayName: "A user-friendly name for this configuration (e.g., Production).",
@@ -120,29 +208,27 @@ document.addEventListener('DOMContentLoaded', () => {
         let inputHtml = '';
         if (type === 'select') {
             const optionsHtml = options.map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1).replace(/_/g, ' ')}</option>`).join('');
-            inputHtml = `<select id="${id}" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${optionsHtml}</select>`;
+            inputHtml = `<select id="${id}" class="form-select">${optionsHtml}</select>`;
         } else if (type === 'checkbox') {
-            inputHtml = `<label class="flex items-center space-x-3 cursor-pointer"><input id="${id}" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500" /><span class="text-gray-700">Enable</span></label>`;
+            inputHtml = `<label class="checkbox-label"><input id="${id}" type="checkbox" class="form-checkbox" /><span>Enable</span></label>`;
         } else {
-            inputHtml = `<input type="${type || 'text'}" id="${id}" placeholder="${placeholder || ''}" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />`;
+            inputHtml = `<input type="${type || 'text'}" id="${id}" placeholder="${placeholder || ''}" class="form-input" />`;
         }
-        return `<div class="mb-6"><label for="${id}" class="block text-sm font-medium text-gray-700 mb-1">${label}</label>${inputHtml}${description ? `<p class="mt-2 text-xs text-gray-500">${description}</p>` : ''}</div>`;
+        return `<div class="input-group"><label for="${id}">${label}</label>${inputHtml}${description ? `<p class="input-description">${description}</p>` : ''}</div>`;
     }
 
     // --- STATE MANAGEMENT ---
+    const initialConfigState = {
+        organization: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0, allowUpdates: true, dnsServers: '',
+        splitTunnelInclude: '', splitTunnelExclude: '', onboarding: false, localDomainFallback: '', captivePortal: true, modeSwitchLocked: true,
+        enableDex: true, enablePostQuantum: false, overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: '', displayName: ''
+    };
+    
     let appState = {
         mode: 'single',
-        singleOrgConfig: {
-            organization: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0, allowUpdates: true, dnsServers: '',
-            splitTunnelInclude: '', splitTunnelExclude: '', onboarding: false, localDomainFallback: '', captivePortal: true, modeSwitchLocked: true,
-            enableDex: true, enablePostQuantum: false, overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: ''
-        },
+        singleOrgConfig: { ...initialConfigState },
         multiOrgConfigs: [],
-        newMultiOrgConfig: {
-            organization: '', displayName: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0, allowUpdates: true, dnsServers: '',
-            splitTunnelInclude: '', splitTunnelExclude: '', onboarding: false, localDomainFallback: '', captivePortal: true, modeSwitchLocked: true,
-            enableDex: true, enablePostQuantum: false, overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: ''
-        }
+        newMultiOrgConfig: { ...initialConfigState }
     };
 
     // --- DOM REFERENCES ---
@@ -159,10 +245,10 @@ document.addEventListener('DOMContentLoaded', () => {
             let chinaFormFields = chinaFields.map(createFieldHtml).join('');
             formContainer.innerHTML = `
                 <fieldset id="single-org-fieldset">
-                    <legend class="text-lg font-semibold text-gray-900 mb-4">Single Organization Settings</legend>
+                    <legend>Single Organization Settings</legend>
                     ${singleFormFields}
-                    <fieldset class="mt-8 border-t border-gray-200 pt-4">
-                        <legend class="text-md font-semibold text-gray-800 mb-2">China Network Overrides (Optional)</legend>
+                    <fieldset class="form-divider">
+                        <legend>China Network Overrides (Optional)</legend>
                         ${chinaFormFields}
                     </fieldset>
                 </fieldset>`;
@@ -173,16 +259,16 @@ document.addEventListener('DOMContentLoaded', () => {
             formContainer.innerHTML = `
                 <form id="multi-org-form">
                     <fieldset>
-                        <legend class="text-lg font-semibold text-gray-900 mb-4">Add Organization Configuration</legend>
+                        <legend>Add Organization Configuration</legend>
                         ${multiFormFields}
-                         <fieldset class="mt-8 border-t border-gray-200 pt-4">
-                            <legend class="text-md font-semibold text-gray-800 mb-2">China Network Overrides (Optional)</legend>
+                         <fieldset class="form-divider">
+                            <legend>China Network Overrides (Optional)</legend>
                             ${chinaFormFields}
                         </fieldset>
-                        <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors duration-200 mt-6">Add Additional Organization Configuration</button>
+                        <button type="submit" class="button button-secondary" style="margin-top: 1.5rem;">Add Additional Organization Configuration</button>
                     </fieldset>
                 </form>
-                <div id="multi-org-list-container" class="mt-8"></div>`;
+                <div id="multi-org-list-container"></div>`;
             updateMultiOrgList();
             updateNewMultiFormValues();
         }
@@ -240,21 +326,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         container.innerHTML = `
-            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-t border-gray-200 pt-4">Current Configurations:</h3>
-            <ul class="space-y-3">
+            <h3 class="multi-org-list-header">Current Configurations:</h3>
+            <ul class="multi-org-list">
                 ${appState.multiOrgConfigs.map((config, index) => `
-                    <li class="bg-white border border-gray-200 p-4 rounded-md shadow-sm">
-                        <div class="flex items-start justify-between">
-                            <div>
-                                <p class="font-bold text-gray-900">${config.displayName} <span class="font-normal text-gray-600">(${config.organization})</span></p>
-                                <p class="text-sm text-gray-500 mt-1">Mode: ${config.serviceMode}, Gateway: ${config.gatewayId || 'Default'}</p>
+                    <li class="multi-org-list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-details">
+                                <p><span class="font-bold">${config.displayName}</span> <span class="font-normal">(${config.organization})</span></p>
+                                <p>Mode: ${config.serviceMode}, Gateway: ${config.gatewayId || 'Default'}</p>
                             </div>
-                            <button data-index="${index}" class="remove-btn text-red-600 hover:text-red-500 font-semibold text-sm ml-4 flex-shrink-0">Remove</button>
+                            <button data-index="${index}" class="button-remove">Remove</button>
                         </div>
                     </li>
                 `).join('')}
             </ul>`;
-        document.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', handleRemoveMultiOrg));
+        document.querySelectorAll('.button-remove').forEach(btn => btn.addEventListener('click', handleRemoveMultiOrg));
     }
 
     function handleAddMultiOrg(e) {
@@ -262,12 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const { organization, displayName } = appState.newMultiOrgConfig;
         if (organization && displayName) {
             appState.multiOrgConfigs.push({ ...appState.newMultiOrgConfig });
-            // Reset the new config form state
-            appState.newMultiOrgConfig = {
-                organization: '', displayName: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0, allowUpdates: true, dnsServers: '',
-                splitTunnelInclude: '', splitTunnelExclude: '', onboarding: false, localDomainFallback: '', captivePortal: true, modeSwitchLocked: true,
-                enableDex: true, enablePostQuantum: false, overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: ''
-            };
+            appState.newMultiOrgConfig = { ...initialConfigState };
             updateMultiOrgList();
             updateNewMultiFormValues();
             generateXml();
@@ -283,9 +364,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generateXml() {
         let xmlString = '';
+        const escapeXml = (unsafe) => unsafe.replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&apos;','"':'&quot;'}[c]));
+
         const formatSimpleArray = (input) => {
             if (!input || !input.trim()) return null;
-            const items = input.split(',').map(item => `        <string>${item.trim()}</string>`).join('\n');
+            const items = input.split(',').map(item => `        <string>${escapeXml(item.trim())}</string>`).join('\n');
             return `    <array>\n${items}\n    </array>`;
         };
         
@@ -333,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dictItems = generateDictItems(appState.singleOrgConfig).map(item => {
                     let valueTag;
                     switch (item.type) {
-                        case 'string': valueTag = `    <string>${item.value}</string>`; break;
+                        case 'string': valueTag = `    <string>${escapeXml(item.value)}</string>`; break;
                         case 'integer': valueTag = `    <integer>${item.value}</integer>`; break;
                         case 'boolean': valueTag = `    ${item.value ? '<true/>' : '<false/>'}`; break;
                         case 'array': valueTag = item.value; break;
@@ -351,13 +434,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const items = generateDictItems(config).map(item => {
                          let valueTag;
                         switch (item.type) {
-                            case 'string': valueTag = `      <string>${item.value}</string>`; break;
+                            case 'string': valueTag = `      <string>${escapeXml(item.value)}</string>`; break;
                             case 'integer': valueTag = `      <integer>${item.value}</integer>`; break;
                             case 'boolean': valueTag = `      ${item.value ? '<true/>' : '<false/>'}`; break;
-                            case 'array': valueTag = item.value; break; // This needs adjustment for indentation
+                            case 'array': valueTag = item.value; break;
                             default: valueTag = '';
                         }
-                        // Adjust indentation for arrays within multi-org
                         if (item.type === 'array') {
                             valueTag = valueTag.replace(/    /g, '      ').replace(/      <string>/g, '        <string>');
                         }
