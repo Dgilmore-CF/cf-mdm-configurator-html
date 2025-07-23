@@ -46,7 +46,22 @@
         .form-section { background-color: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; }
         .xml-section { background-color: #1f2937; color: #ffffff; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
         .xml-preview-container { background-color: #111827; border-radius: 0.375rem; flex-grow: 1; position: relative; }
-        .xml-preview { width: 100%; height: 100%; font-family: monospace; font-size: 0.875rem; color: #6ee7b7; padding: 1rem; overflow: auto; position: absolute; top: 0; left: 0; margin: 0; white-space: pre-wrap; }
+        .xml-preview {
+            width: 100%;
+            height: 100%;
+            font-family: monospace;
+            font-size: 0.875rem;
+            color: #6ee7b7;
+            padding: 1rem;
+            overflow: auto;
+            position: absolute;
+            top: 0;
+            left: 0;
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            box-sizing: border-box; /* <-- FIX: This prevents padding from adding to the width */
+        }
         
         /* --- Form Elements --- */
         .form-input, .form-select {
@@ -134,7 +149,7 @@
                 <div class="xml-section flex-col flex-grow">
                     <h2>Generated mdm.xml</h2>
                     <div class="xml-preview-container">
-                        <pre><code id="xml-output" class="xml-preview"></code></pre>
+                        <pre id="xml-output" class="xml-preview"></pre>
                     </div>
                 </div>
                  <div style="margin-top: 1.5rem;">
