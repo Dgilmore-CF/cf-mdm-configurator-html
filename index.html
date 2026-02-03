@@ -171,58 +171,86 @@ document.addEventListener('DOMContentLoaded', () => {
         organization: "Your organization's team name from the Zero Trust dashboard.",
         displayName: "A user-friendly name for this configuration (e.g., Production).",
         serviceMode: "Sets the client's operational mode.",
-        gatewayId: "Your Gateway unique ID. If you do not include this, the client will use the default Gateway configuration.",
-        supportUrl: "A URL for users to access for support, like your internal help desk.",
+        gatewayId: "Your Gateway DoH subdomain. Required for DNS-only policy enforcement.",
+        supportUrl: "A URL for users to access for support, like your internal help desk (https:// or mailto:).",
         switchLocked: "If true, users cannot disable the WARP client switch.",
-        autoConnect: "The client will attempt to connect every X minutes. 0 means it is disabled.",
-        allowUpdates: "If true, the Cloudflare WARP client will automatically update.",
-        dnsServers: "A comma-separated list of IP addresses to be used for DNS over HTTPS.",
-        splitTunnelInclude: "A comma-separated list of IPs and domains to be included in the WARP tunnel.",
-        splitTunnelExclude: "A comma-separated list of IPs and domains to be excluded from the WARP tunnel.",
-        onboarding: "If enabled, prevents the onboarding screens from showing to new users.",
-        localDomainFallback: "Comma-separated list of domains to resolve via local DNS. E.g., example.com,*.internal.corp",
-        captivePortal: "Enable captive portal detection. Recommended to keep enabled.",
-        modeSwitchLocked: "If enabled, users cannot switch between service modes (e.g., WARP to Proxy).",
-        enableDex: "Enables Digital Experience Monitoring.",
-        enablePostQuantum: "Enables support for post-quantum cryptography.",
-        overrideEndpoint: "For use in China only. Enter the IP address for the respective endpoint.",
-        authClientId: "The Client ID of your service token.",
-        authClientSecret: "The Client Secret of your service token."
+        autoConnect: "The client will automatically reconnect after the specified number of minutes. 0 allows indefinite off state.",
+        onboarding: "If disabled, hides onboarding screens that ask users to review the privacy policy.",
+        enablePostQuantum: "Enables post-quantum cryptography for the WARP tunnel.",
+        overrideEndpoint: "For use with China network partner or third-party partner. Enter the IP address for the respective endpoint.",
+        authClientId: "The Client ID of your service token for Service Auth enrollment.",
+        authClientSecret: "The Client Secret of your service token for Service Auth enrollment.",
+        multiUser: "Enables multiple user registrations on a Windows device. Each Windows user gets their own WARP registration.",
+        preLogin: "Allows WARP to connect with a service token before a user completes the initial Windows login.",
+        enableNetbt: "Enables NetBIOS over TCP/IP on the WARP tunnel interface (Windows only, disabled by default for security).",
+        enablePmtud: "Enables Path MTU Discovery to optimize connection performance.",
+        warpTunnelProtocol: "The protocol used to route IP traffic from the device to Cloudflare Gateway.",
+        proxyPort: "The localhost SOCKS proxy port when using proxy service mode (0-65535).",
+        externalEmergencySignalUrl: "HTTPS endpoint that WARP will poll for an External Emergency Disconnect signal. Must use https:// with an IP address.",
+        externalEmergencySignalFingerprint: "SHA-256 fingerprint to validate the external emergency signal HTTPS endpoint.",
+        externalEmergencySignalInterval: "How often (in seconds) WARP will poll the external emergency signal URL. Minimum 30, default 300."
     };
 
     const allFields = [
         { id: 'organization', label: 'Team Name / Organization', placeholder: 'your-team-name', description: paramDocs.organization },
-        { id: 'displayName', label: 'Display Name', placeholder: 'Production Environment', description: paramDocs.displayName, multiOnly: true },
-        { id: 'authClientId', label: 'Auth Client ID', placeholder: 'Service Token Client ID', description: paramDocs.authClientId },
-        { id: 'authClientSecret', label: 'Auth Client Secret', placeholder: 'Service Token Client Secret', description: paramDocs.authClientSecret },
-        { id: 'serviceMode', label: 'Service Mode', type: 'select', options: ['warp', 'proxy', 'tunnel_only', 'posture_only'], description: paramDocs.serviceMode },
-        { id: 'gatewayId', label: 'Gateway Unique ID', placeholder: 'your-gateway-id', description: paramDocs.gatewayId },
+        { id: 'displayName', label: 'Display Name', placeholder: 'Production Environment', description: paramDocs.displayName },
+        { id: 'authClientId', label: 'Auth Client ID', placeholder: '88bf3b6d86161464f6509f7219099e57.access', description: paramDocs.authClientId },
+        { id: 'authClientSecret', label: 'Auth Client Secret', placeholder: 'bdd31cbc4dec990953e39163fbbb194c...', description: paramDocs.authClientSecret },
+        { id: 'serviceMode', label: 'Service Mode', type: 'select', options: [
+            { value: 'warp', label: 'Gateway with WARP' },
+            { value: '1dot1', label: 'Gateway with DoH' },
+            { value: 'proxy', label: 'Proxy Mode' },
+            { value: 'tunnelonly', label: 'Secure Web Gateway (no DNS)' },
+            { value: 'postureonly', label: 'Device Information Only' }
+        ], description: paramDocs.serviceMode },
+        { id: 'proxyPort', label: 'Proxy Port', type: 'number', placeholder: '44444', description: paramDocs.proxyPort, showWhen: { field: 'serviceMode', value: 'proxy' } },
+        { id: 'gatewayId', label: 'Gateway Unique ID (DoH Subdomain)', placeholder: 'your-doh-subdomain', description: paramDocs.gatewayId },
         { id: 'supportUrl', label: 'Support URL', placeholder: 'https://helpdesk.example.com', description: paramDocs.supportUrl },
         { id: 'autoConnect', label: 'Auto Connect (minutes)', type: 'number', description: paramDocs.autoConnect },
         { id: 'switchLocked', label: 'Lock WARP Switch', type: 'checkbox', description: paramDocs.switchLocked },
-        { id: 'modeSwitchLocked', label: 'Lock Service Mode Switch', type: 'checkbox', description: paramDocs.modeSwitchLocked },
-        { id: 'allowUpdates', label: 'Allow Auto Updates', type: 'checkbox', description: paramDocs.allowUpdates },
-        { id: 'onboarding', label: 'Disable Onboarding Flow', type: 'checkbox', description: paramDocs.onboarding },
-        { id: 'captivePortal', label: 'Captive Portal Detection', type: 'checkbox', description: paramDocs.captivePortal },
-        { id: 'enableDex', label: 'Enable Digital Experience Monitoring', type: 'checkbox', description: paramDocs.enableDex },
+        { id: 'onboarding', label: 'Show Onboarding Screens', type: 'checkbox', description: paramDocs.onboarding },
         { id: 'enablePostQuantum', label: 'Enable Post-Quantum Cryptography', type: 'checkbox', description: paramDocs.enablePostQuantum },
-        { id: 'dnsServers', label: 'DNS Servers', placeholder: '1.1.1.1, 8.8.8.8', description: paramDocs.dnsServers },
-        { id: 'splitTunnelInclude', label: 'Split Tunnel - Include', placeholder: '192.168.1.0/24, example.com', description: paramDocs.splitTunnelInclude },
-        { id: 'splitTunnelExclude', label: 'Split Tunnel - Exclude', placeholder: '10.0.0.0/8', description: paramDocs.splitTunnelExclude },
-        { id: 'localDomainFallback', label: 'Local Domain Fallback', placeholder: 'example.com,*.internal.corp', description: paramDocs.localDomainFallback },
+        { id: 'warpTunnelProtocol', label: 'Tunnel Protocol', type: 'select', options: [
+            { value: 'masque', label: 'MASQUE (default)' },
+            { value: 'wireguard', label: 'WireGuard' }
+        ], description: paramDocs.warpTunnelProtocol },
+        { id: 'enablePmtud', label: 'Enable Path MTU Discovery', type: 'checkbox', description: paramDocs.enablePmtud },
+        { id: 'enableNetbt', label: 'Enable NetBIOS over TCP/IP', type: 'checkbox', description: paramDocs.enableNetbt },
     ];
 
     const chinaFields = [
         { id: 'overrideApiEndpoint', label: 'Override API Endpoint', placeholder: '203.0.113.0', description: paramDocs.overrideEndpoint },
         { id: 'overrideDohEndpoint', label: 'Override DoH Endpoint', placeholder: '203.0.113.0', description: paramDocs.overrideEndpoint },
-        { id: 'overrideWarpEndpoint', label: 'Override WARP Endpoint', placeholder: '203.0.113.0:0', description: paramDocs.overrideEndpoint },
+        { id: 'overrideWarpEndpoint', label: 'Override WARP Endpoint', placeholder: '203.0.113.0:500', description: paramDocs.overrideEndpoint },
+    ];
+
+    const emergencyDisconnectFields = [
+        { id: 'externalEmergencySignalUrl', label: 'External Emergency Signal URL', placeholder: 'https://192.0.2.1:3333/status/disconnect', description: paramDocs.externalEmergencySignalUrl },
+        { id: 'externalEmergencySignalFingerprint', label: 'External Emergency Signal Fingerprint', placeholder: 'DD4F4806C57A5BBAF1AA5B080F0541DA75DB468D0A1FE731310149500CCD8662', description: paramDocs.externalEmergencySignalFingerprint },
+        { id: 'externalEmergencySignalInterval', label: 'External Emergency Signal Interval (seconds)', type: 'number', placeholder: '300', description: paramDocs.externalEmergencySignalInterval },
+    ];
+
+    const topLevelFields = [
+        { id: 'multiUser', label: 'Enable Multi-User Mode (Windows)', type: 'checkbox', description: paramDocs.multiUser },
+        { id: 'preLoginEnabled', label: 'Enable Pre-Login (Windows)', type: 'checkbox', description: paramDocs.preLogin },
+    ];
+
+    const preLoginFields = [
+        { id: 'preLoginOrganization', label: 'Pre-Login Organization', placeholder: 'your-team-name', description: 'Organization for pre-login registration.' },
+        { id: 'preLoginAuthClientId', label: 'Pre-Login Auth Client ID', placeholder: '88bf3b6d86161464f6509f7219099e57.access', description: 'Service token Client ID for pre-login.' },
+        { id: 'preLoginAuthClientSecret', label: 'Pre-Login Auth Client Secret', placeholder: 'bdd31cbc4dec990953e39163fbbb194c...', description: 'Service token Client Secret for pre-login.' },
     ];
 
     function createFieldHtml(field) {
         const { id, label, type, placeholder, description, options } = field;
         let inputHtml = '';
         if (type === 'select') {
-            const optionsHtml = options.map(opt => `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1).replace(/_/g, ' ')}</option>`).join('');
+            const optionsHtml = options.map(opt => {
+                if (typeof opt === 'object') {
+                    return `<option value="${opt.value}">${opt.label}</option>`;
+                }
+                return `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1).replace(/_/g, ' ')}</option>`;
+            }).join('');
             inputHtml = `<select id="${id}" class="form-select">${optionsHtml}</select>`;
         } else if (type === 'checkbox') {
             inputHtml = `<label class="checkbox-label"><input id="${id}" type="checkbox" class="form-checkbox" /><span>Enable</span></label>`;
@@ -234,16 +262,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- STATE MANAGEMENT ---
     const initialConfigState = {
-        organization: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0, allowUpdates: true, dnsServers: '',
-        splitTunnelInclude: '', splitTunnelExclude: '', onboarding: false, localDomainFallback: '', captivePortal: true, modeSwitchLocked: true,
-        enableDex: true, enablePostQuantum: false, overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: '', displayName: ''
+        organization: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0,
+        onboarding: true, enablePostQuantum: false, enablePmtud: false, enableNetbt: false, warpTunnelProtocol: 'masque', proxyPort: 0,
+        overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: '', displayName: '',
+        externalEmergencySignalUrl: '', externalEmergencySignalFingerprint: '', externalEmergencySignalInterval: 0
+    };
+
+    const initialTopLevelState = {
+        multiUser: false,
+        preLoginEnabled: false,
+        preLoginOrganization: '',
+        preLoginAuthClientId: '',
+        preLoginAuthClientSecret: ''
     };
     
     let appState = {
         mode: 'single',
         singleOrgConfig: { ...initialConfigState },
         multiOrgConfigs: [],
-        newMultiOrgConfig: { ...initialConfigState }
+        newMultiOrgConfig: { ...initialConfigState },
+        topLevel: { ...initialTopLevelState }
     };
 
     // --- DOM REFERENCES ---
@@ -255,43 +293,91 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- RENDER/UPDATE FUNCTIONS ---
     function render() {
         formContainer.innerHTML = ''; // Clear previous form
+        let topLevelHtml = topLevelFields.map(createFieldHtml).join('');
+        let preLoginHtml = preLoginFields.map(createFieldHtml).join('');
+        let emergencyHtml = emergencyDisconnectFields.map(createFieldHtml).join('');
+        let chinaFormFields = chinaFields.map(createFieldHtml).join('');
+
         if (appState.mode === 'single') {
             let singleFormFields = allFields.filter(f => !f.multiOnly).map(createFieldHtml).join('');
-            let chinaFormFields = chinaFields.map(createFieldHtml).join('');
             formContainer.innerHTML = `
-                <fieldset id="single-org-fieldset">
-                    <legend>Single Organization Settings</legend>
+                <fieldset id="top-level-fieldset">
+                    <legend>Windows Features (Top-Level)</legend>
+                    ${topLevelHtml}
+                    <div id="pre-login-fields" style="display: none;">
+                        ${preLoginHtml}
+                    </div>
+                </fieldset>
+                <fieldset id="single-org-fieldset" class="form-divider">
+                    <legend>Organization Settings</legend>
                     ${singleFormFields}
                     <fieldset class="form-divider">
-                        <legend>China Network Overrides (Optional)</legend>
+                        <legend>External Emergency Disconnect (Optional)</legend>
+                        ${emergencyHtml}
+                    </fieldset>
+                    <fieldset class="form-divider">
+                        <legend>Endpoint Overrides (Optional)</legend>
                         ${chinaFormFields}
                     </fieldset>
                 </fieldset>`;
             updateSingleFormValues();
+            updateTopLevelFormValues();
         } else {
             let multiFormFields = allFields.map(createFieldHtml).join('');
-            let chinaFormFields = chinaFields.map(createFieldHtml).join('');
             formContainer.innerHTML = `
-                <form id="multi-org-form">
+                <fieldset id="top-level-fieldset">
+                    <legend>Windows Features (Top-Level)</legend>
+                    ${topLevelHtml}
+                    <div id="pre-login-fields" style="display: none;">
+                        ${preLoginHtml}
+                    </div>
+                </fieldset>
+                <form id="multi-org-form" class="form-divider">
                     <fieldset>
                         <legend>Add Organization Configuration</legend>
                         ${multiFormFields}
-                         <fieldset class="form-divider">
-                            <legend>China Network Overrides (Optional)</legend>
+                        <fieldset class="form-divider">
+                            <legend>External Emergency Disconnect (Optional)</legend>
+                            ${emergencyHtml}
+                        </fieldset>
+                        <fieldset class="form-divider">
+                            <legend>Endpoint Overrides (Optional)</legend>
                             ${chinaFormFields}
                         </fieldset>
-                        <button type="submit" class="button button-secondary" style="margin-top: 1.5rem;">Add Additional Organization Configuration</button>
+                        <button type="submit" class="button button-secondary" style="margin-top: 1.5rem;">Add Organization Configuration</button>
                     </fieldset>
                 </form>
                 <div id="multi-org-list-container"></div>`;
             updateMultiOrgList();
             updateNewMultiFormValues();
+            updateTopLevelFormValues();
         }
         addEventListeners();
+        togglePreLoginFields();
         generateXml();
     }
 
+    function togglePreLoginFields() {
+        const preLoginFieldsDiv = document.getElementById('pre-login-fields');
+        if (preLoginFieldsDiv) {
+            preLoginFieldsDiv.style.display = appState.topLevel.preLoginEnabled ? 'block' : 'none';
+        }
+    }
+
     function addEventListeners() {
+        // Top-level fields event listeners
+        document.querySelectorAll('#top-level-fieldset input, #top-level-fieldset select').forEach(el => {
+            const eventType = el.type === 'checkbox' ? 'change' : 'input';
+            el.addEventListener(eventType, (e) => {
+                const { id, value, type, checked } = e.target;
+                appState.topLevel[id] = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
+                if (id === 'preLoginEnabled') {
+                    togglePreLoginFields();
+                }
+                generateXml();
+            });
+        });
+
         if (appState.mode === 'single') {
             document.querySelectorAll('#single-org-fieldset input, #single-org-fieldset select').forEach(el => {
                 const eventType = el.type === 'checkbox' ? 'change' : 'input';
@@ -319,6 +405,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el) {
                 if (el.type === 'checkbox') el.checked = appState.singleOrgConfig[key];
                 else el.value = appState.singleOrgConfig[key];
+            }
+        }
+    }
+
+    function updateTopLevelFormValues() {
+        for (const key in appState.topLevel) {
+            const el = document.getElementById(key);
+            if (el) {
+                if (el.type === 'checkbox') el.checked = appState.topLevel[key];
+                else el.value = appState.topLevel[key];
             }
         }
     }
@@ -391,23 +487,22 @@ document.addEventListener('DOMContentLoaded', () => {
              const items = [
                 { key: 'organization', value: config.organization, type: 'string' },
                 { key: 'display_name', value: config.displayName, type: 'string' },
-                { key: 'service_mode', value: config.serviceMode, type: 'string' },
-                { key: 'gateway_id', value: config.gatewayId, type: 'string' },
+                { key: 'gateway_unique_id', value: config.gatewayId, type: 'string' },
                 { key: 'auth_client_id', value: config.authClientId, type: 'string' },
                 { key: 'auth_client_secret', value: config.authClientSecret, type: 'string' },
+                { key: 'service_mode', value: config.serviceMode, type: 'string' },
+                { key: 'proxy_port', value: config.serviceMode === 'proxy' && config.proxyPort ? config.proxyPort : null, type: 'integer' },
                 { key: 'support_url', value: config.supportUrl, type: 'string' },
                 { key: 'switch_locked', value: config.switchLocked, type: 'boolean' },
-                { key: 'mode_switch_locked', value: config.modeSwitchLocked, type: 'boolean' },
                 { key: 'auto_connect', value: config.autoConnect, type: 'integer' },
-                { key: 'allow_updates', value: config.allowUpdates, type: 'boolean' },
                 { key: 'onboarding', value: config.onboarding, type: 'boolean' },
-                { key: 'captive_portal', value: config.captivePortal, type: 'boolean' },
-                { key: 'enable_dex', value: config.enableDex, type: 'boolean' },
                 { key: 'enable_post_quantum', value: config.enablePostQuantum, type: 'boolean' },
-                { key: 'dns_servers', value: formatSimpleArray(config.dnsServers), type: 'array' },
-                { key: 'split_tunnel_include', value: formatSimpleArray(config.splitTunnelInclude), type: 'array' },
-                { key: 'split_tunnel_exclude', value: formatSimpleArray(config.splitTunnelExclude), type: 'array' },
-                { key: 'local_domain_fallback', value: formatSimpleArray(config.localDomainFallback), type: 'array' },
+                { key: 'warp_tunnel_protocol', value: config.warpTunnelProtocol !== 'masque' ? config.warpTunnelProtocol : null, type: 'string' },
+                { key: 'enable_pmtud', value: config.enablePmtud, type: 'boolean' },
+                { key: 'enable_netbt', value: config.enableNetbt, type: 'boolean' },
+                { key: 'external_emergency_signal_url', value: config.externalEmergencySignalUrl, type: 'string' },
+                { key: 'external_emergency_signal_fingerprint', value: config.externalEmergencySignalFingerprint, type: 'string' },
+                { key: 'external_emergency_signal_interval', value: config.externalEmergencySignalInterval > 0 ? config.externalEmergencySignalInterval : null, type: 'integer' },
                 { key: 'override_api_endpoint', value: config.overrideApiEndpoint, type: 'string' },
                 { key: 'override_doh_endpoint', value: config.overrideDohEndpoint, type: 'string' },
                 { key: 'override_warp_endpoint', value: config.overrideWarpEndpoint, type: 'string' },
@@ -417,27 +512,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof item.value === 'string' && item.value.trim() === '') return false;
                 if (item.key === 'auto_connect') return true;
                 if (item.type === 'boolean' && item.value === false) {
-                    const keysToKeepWhenFalse = ['switch_locked', 'mode_switch_locked', 'allow_updates', 'onboarding', 'captive_portal', 'enable_dex', 'enable_post_quantum'];
+                    const keysToKeepWhenFalse = ['switch_locked', 'onboarding', 'enable_post_quantum', 'enable_pmtud', 'enable_netbt'];
                     return keysToKeepWhenFalse.includes(item.key);
                 }
                 return true;
             });
         };
 
+        const needsConfigsWrapper = () => {
+            return appState.topLevel.multiUser || appState.topLevel.preLoginEnabled || appState.mode === 'multi';
+        };
+
+        const formatValueTag = (item, indent) => {
+            switch (item.type) {
+                case 'string': return `${indent}<string>${escapeXml(item.value)}</string>`;
+                case 'integer': return `${indent}<integer>${item.value}</integer>`;
+                case 'boolean': return `${indent}${item.value ? '<true/>' : '<false/>'}`;
+                default: return '';
+            }
+        };
+
+        const generatePreLoginDict = (indent) => {
+            const tl = appState.topLevel;
+            if (!tl.preLoginEnabled || !tl.preLoginOrganization) return '';
+            let items = [];
+            items.push(`${indent}  <key>organization</key>\n${indent}  <string>${escapeXml(tl.preLoginOrganization)}</string>`);
+            if (tl.preLoginAuthClientId) {
+                items.push(`${indent}  <key>auth_client_id</key>\n${indent}  <string>${escapeXml(tl.preLoginAuthClientId)}</string>`);
+            }
+            if (tl.preLoginAuthClientSecret) {
+                items.push(`${indent}  <key>auth_client_secret</key>\n${indent}  <string>${escapeXml(tl.preLoginAuthClientSecret)}</string>`);
+            }
+            return `${indent}<key>pre_login</key>\n${indent}<dict>\n${items.join('\n')}\n${indent}</dict>`;
+        };
+
         if (appState.mode === 'single') {
             if (!appState.singleOrgConfig.organization) {
                 xmlString = '<!-- Enter an Organization Name to generate the XML file. -->';
-            } else {
+            } else if (needsConfigsWrapper()) {
+                // Single org but with multi_user or pre_login - needs configs array wrapper
+                let topLevelItems = [];
+                if (appState.topLevel.multiUser) {
+                    topLevelItems.push('  <key>multi_user</key>\n  <true/>');
+                }
+                if (appState.topLevel.preLoginEnabled && appState.topLevel.preLoginOrganization) {
+                    topLevelItems.push(generatePreLoginDict('  '));
+                }
+                
                 const dictItems = generateDictItems(appState.singleOrgConfig).map(item => {
-                    let valueTag;
-                    switch (item.type) {
-                        case 'string': valueTag = `    <string>${escapeXml(item.value)}</string>`; break;
-                        case 'integer': valueTag = `    <integer>${item.value}</integer>`; break;
-                        case 'boolean': valueTag = `    ${item.value ? '<true/>' : '<false/>'}`; break;
-                        case 'array': valueTag = item.value; break;
-                        default: valueTag = '';
-                    }
-                    return `    <key>${item.key}</key>\n${valueTag}`;
+                    return `      <key>${item.key}</key>\n${formatValueTag(item, '      ')}`;
+                }).join('\n');
+                
+                topLevelItems.push(`  <key>configs</key>\n  <array>\n    <dict>\n${dictItems}\n    </dict>\n  </array>`);
+                
+                xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n${topLevelItems.join('\n')}\n</dict>`;
+            } else {
+                // Simple single org without top-level features
+                const dictItems = generateDictItems(appState.singleOrgConfig).map(item => {
+                    return `  <key>${item.key}</key>\n${formatValueTag(item, '  ')}`;
                 }).join('\n');
                 xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n${dictItems}\n</dict>`;
             }
@@ -445,24 +577,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (appState.multiOrgConfigs.length === 0) {
                  xmlString = '<!-- Add an organization configuration to generate the XML file. -->';
             } else {
+                let topLevelItems = [];
+                if (appState.topLevel.multiUser) {
+                    topLevelItems.push('  <key>multi_user</key>\n  <true/>');
+                }
+                if (appState.topLevel.preLoginEnabled && appState.topLevel.preLoginOrganization) {
+                    topLevelItems.push(generatePreLoginDict('  '));
+                }
+                
                 const configDicts = appState.multiOrgConfigs.map(config => {
                     const items = generateDictItems(config).map(item => {
-                         let valueTag;
-                        switch (item.type) {
-                            case 'string': valueTag = `      <string>${escapeXml(item.value)}</string>`; break;
-                            case 'integer': valueTag = `      <integer>${item.value}</integer>`; break;
-                            case 'boolean': valueTag = `      ${item.value ? '<true/>' : '<false/>'}`; break;
-                            case 'array': valueTag = item.value; break;
-                            default: valueTag = '';
-                        }
-                        if (item.type === 'array') {
-                            valueTag = valueTag.replace(/    /g, '      ').replace(/      <string>/g, '        <string>');
-                        }
-                        return `      <key>${item.key}</key>\n${valueTag}`;
+                        return `      <key>${item.key}</key>\n${formatValueTag(item, '      ')}`;
                     }).join('\n');
                     return `    <dict>\n${items}\n    </dict>`;
                 }).join('\n');
-                xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n  <key>configs</key>\n  <array>\n${configDicts}\n  </array>\n</dict>`;
+                
+                topLevelItems.push(`  <key>configs</key>\n  <array>\n${configDicts}\n  </array>`);
+                
+                xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n${topLevelItems.join('\n')}\n</dict>`;
             }
         }
 
