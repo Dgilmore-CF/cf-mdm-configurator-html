@@ -4,25 +4,36 @@ A web-based tool for generating `mdm.xml` configuration files for deploying the 
 
 ## Overview
 
-This tool provides a user-friendly interface to create MDM configuration files for Cloudflare WARP deployments. It supports all available MDM parameters as documented in the [official Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/).
+This tool provides a user-friendly interface to create MDM configuration files for Cloudflare WARP deployments on **Windows** and **macOS**. It supports all available MDM parameters as documented in the [official Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/).
 
 ## Features
 
+- **Multi-Platform Support** - Generate configurations for Windows and macOS
 - **Single Organization** - Configure WARP for a single Zero Trust organization
 - **Multi-Organization** - Allow users to switch between multiple Zero Trust organizations
-- **Windows Multi-User Support** - Enable per-user WARP registrations on shared Windows devices
-- **Windows Pre-Login** - Connect WARP before Windows login using service tokens
+- **Windows Multi-User Support** - Enable per-user WARP registrations on shared Windows devices (Windows only)
+- **Windows Pre-Login** - Connect WARP before Windows login using service tokens (Windows only)
 - **External Emergency Disconnect** - Configure emergency disconnect polling endpoints
+
+## Platform Support
+
+| Feature | Windows | macOS |
+|---------|---------|-------|
+| Single/Multi Organization | ✅ | ✅ |
+| Multi-User Mode | ✅ | ❌ |
+| Pre-Login | ✅ | ❌ |
+| NetBIOS over TCP/IP | ✅ | ❌ |
+| All other parameters | ✅ | ✅ |
 
 ## Supported Parameters
 
-### Top-Level Parameters (Windows)
+### Top-Level Parameters (Windows Only)
 | Parameter | Description |
 |-----------|-------------|
 | `multi_user` | Enable multiple user registrations per Windows device |
 | `pre_login` | Connect WARP before Windows login with service token |
 
-### Organization Parameters
+### Organization Parameters (All Platforms)
 | Parameter | Description |
 |-----------|-------------|
 | `organization` | Your Zero Trust team name |
@@ -39,7 +50,11 @@ This tool provides a user-friendly interface to create MDM configuration files f
 | `enable_post_quantum` | Enable post-quantum cryptography |
 | `warp_tunnel_protocol` | Tunnel protocol (masque or wireguard) |
 | `enable_pmtud` | Enable Path MTU Discovery |
-| `enable_netbt` | Enable NetBIOS over TCP/IP (Windows) |
+
+### Windows-Only Parameters
+| Parameter | Description |
+|-----------|-------------|
+| `enable_netbt` | Enable NetBIOS over TCP/IP on WARP tunnel interface |
 
 ### External Emergency Disconnect
 | Parameter | Description |
@@ -68,16 +83,17 @@ This tool provides a user-friendly interface to create MDM configuration files f
 ## Usage
 
 1. Open `index.html` in a web browser
-2. Select deployment type (Single or Multi-Organization)
-3. Configure Windows features if needed (Multi-User, Pre-Login)
-4. Fill in organization settings
-5. Configure optional parameters as needed
-6. Download the generated `mdm.xml` file
-7. Deploy via your MDM solution
+2. **Select your target operating system** (Windows or macOS)
+3. Select deployment type (Single or Multi-Organization)
+4. Configure platform-specific features if needed (Multi-User, Pre-Login for Windows)
+5. Fill in organization settings
+6. Configure optional parameters as needed
+7. Download the generated `mdm.xml` file
+8. Deploy via your MDM solution
 
-## Platform Support
+### macOS Deployment
 
-This tool currently generates configuration files for **Windows** deployments.
+For macOS, place the `mdm.xml` file in `/Library/Application Support/Cloudflare/` or convert it to a `.plist` file for deployment via Jamf, Intune, Kandji, or other MDM tools.
 
 ## Disclaimer
 

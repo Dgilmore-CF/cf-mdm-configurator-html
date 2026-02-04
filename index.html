@@ -119,19 +119,26 @@
 </head>
 <body>
     <div class="container">
-        <div class="disclaimer-box">
-            <p><span class="font-bold">Note:</span> This tool currently only supports Windows deployments.</p>
+<div id="disclaimer-box" class="disclaimer-box">
+            <p><span class="font-bold">Tip:</span> Select your target operating system to see available configuration options.</p>
         </div>
         <header class="header">
             <h1>Cloudflare WARP MDM Configurator</h1>
             <p>
-                Create a custom <code>mdm.xml</code> file for deploying the WARP client.
+Create a custom MDM configuration file for deploying the Cloudflare WARP client.
             </p>
         </header>
 
         <div class="grid">
-            <!-- Form Section -->
+<!-- Form Section -->
             <div class="form-section">
+                <div class="input-group">
+                    <label for="os-select">Target Operating System</label>
+                    <select id="os-select" class="form-select">
+                        <option value="windows">Windows</option>
+                        <option value="macos">macOS</option>
+                    </select>
+                </div>
                 <div class="input-group">
                     <label for="mode-select">Deployment Type</label>
                     <select id="mode-select" class="form-select">
@@ -215,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { value: 'wireguard', label: 'WireGuard' }
         ], description: paramDocs.warpTunnelProtocol },
         { id: 'enablePmtud', label: 'Enable Path MTU Discovery', type: 'checkbox', description: paramDocs.enablePmtud },
-        { id: 'enableNetbt', label: 'Enable NetBIOS over TCP/IP', type: 'checkbox', description: paramDocs.enableNetbt },
+        { id: 'enableNetbt', label: 'Enable NetBIOS over TCP/IP', type: 'checkbox', description: paramDocs.enableNetbt, windowsOnly: true },
     ];
 
     const chinaFields = [
@@ -231,8 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const topLevelFields = [
-        { id: 'multiUser', label: 'Enable Multi-User Mode (Windows)', type: 'checkbox', description: paramDocs.multiUser },
-        { id: 'preLoginEnabled', label: 'Enable Pre-Login (Windows)', type: 'checkbox', description: paramDocs.preLogin },
+        { id: 'multiUser', label: 'Enable Multi-User Mode', type: 'checkbox', description: paramDocs.multiUser, windowsOnly: true },
+        { id: 'preLoginEnabled', label: 'Enable Pre-Login', type: 'checkbox', description: paramDocs.preLogin, windowsOnly: true },
     ];
 
     const preLoginFields = [
@@ -277,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     let appState = {
+        os: 'windows',
         mode: 'single',
         singleOrgConfig: { ...initialConfigState },
         multiOrgConfigs: [],
@@ -285,30 +293,41 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DOM REFERENCES ---
+    const osSelect = document.getElementById('os-select');
     const modeSelect = document.getElementById('mode-select');
     const formContainer = document.getElementById('form-container');
     const xmlOutputEl = document.getElementById('xml-output');
     const downloadButton = document.getElementById('download-button');
 
     // --- RENDER/UPDATE FUNCTIONS ---
+    function filterFieldsByOs(fields) {
+        return fields.filter(f => !f.windowsOnly || appState.os === 'windows');
+    }
+
     function render() {
         formContainer.innerHTML = ''; // Clear previous form
-        let topLevelHtml = topLevelFields.map(createFieldHtml).join('');
+        const isWindows = appState.os === 'windows';
+        
+        let topLevelHtml = filterFieldsByOs(topLevelFields).map(createFieldHtml).join('');
         let preLoginHtml = preLoginFields.map(createFieldHtml).join('');
         let emergencyHtml = emergencyDisconnectFields.map(createFieldHtml).join('');
         let chinaFormFields = chinaFields.map(createFieldHtml).join('');
 
+        // Windows-only top-level section
+        const windowsFeaturesSection = isWindows ? `
+            <fieldset id="top-level-fieldset">
+                <legend>Windows Features (Top-Level)</legend>
+                ${topLevelHtml}
+                <div id="pre-login-fields" style="display: none;">
+                    ${preLoginHtml}
+                </div>
+            </fieldset>` : '';
+
         if (appState.mode === 'single') {
-            let singleFormFields = allFields.filter(f => !f.multiOnly).map(createFieldHtml).join('');
+            let singleFormFields = filterFieldsByOs(allFields).filter(f => !f.multiOnly).map(createFieldHtml).join('');
             formContainer.innerHTML = `
-                <fieldset id="top-level-fieldset">
-                    <legend>Windows Features (Top-Level)</legend>
-                    ${topLevelHtml}
-                    <div id="pre-login-fields" style="display: none;">
-                        ${preLoginHtml}
-                    </div>
-                </fieldset>
-                <fieldset id="single-org-fieldset" class="form-divider">
+                ${windowsFeaturesSection}
+                <fieldset id="single-org-fieldset" class="${isWindows ? 'form-divider' : ''}">
                     <legend>Organization Settings</legend>
                     ${singleFormFields}
                     <fieldset class="form-divider">
@@ -321,18 +340,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </fieldset>
                 </fieldset>`;
             updateSingleFormValues();
-            updateTopLevelFormValues();
+            if (isWindows) updateTopLevelFormValues();
         } else {
-            let multiFormFields = allFields.map(createFieldHtml).join('');
+            let multiFormFields = filterFieldsByOs(allFields).map(createFieldHtml).join('');
             formContainer.innerHTML = `
-                <fieldset id="top-level-fieldset">
-                    <legend>Windows Features (Top-Level)</legend>
-                    ${topLevelHtml}
-                    <div id="pre-login-fields" style="display: none;">
-                        ${preLoginHtml}
-                    </div>
-                </fieldset>
-                <form id="multi-org-form" class="form-divider">
+                ${windowsFeaturesSection}
+                <form id="multi-org-form" class="${isWindows ? 'form-divider' : ''}">
                     <fieldset>
                         <legend>Add Organization Configuration</legend>
                         ${multiFormFields}
@@ -350,10 +363,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div id="multi-org-list-container"></div>`;
             updateMultiOrgList();
             updateNewMultiFormValues();
-            updateTopLevelFormValues();
+            if (isWindows) updateTopLevelFormValues();
         }
         addEventListeners();
-        togglePreLoginFields();
+        if (isWindows) togglePreLoginFields();
+        updateDownloadButton();
         generateXml();
     }
 
@@ -484,7 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const generateDictItems = (config) => {
-             const items = [
+            const isWindows = appState.os === 'windows';
+            const items = [
                 { key: 'organization', value: config.organization, type: 'string' },
                 { key: 'display_name', value: config.displayName, type: 'string' },
                 { key: 'gateway_unique_id', value: config.gatewayId, type: 'string' },
@@ -499,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 { key: 'enable_post_quantum', value: config.enablePostQuantum, type: 'boolean' },
                 { key: 'warp_tunnel_protocol', value: config.warpTunnelProtocol !== 'masque' ? config.warpTunnelProtocol : null, type: 'string' },
                 { key: 'enable_pmtud', value: config.enablePmtud, type: 'boolean' },
-                { key: 'enable_netbt', value: config.enableNetbt, type: 'boolean' },
+                { key: 'enable_netbt', value: isWindows ? config.enableNetbt : null, type: 'boolean', windowsOnly: true },
                 { key: 'external_emergency_signal_url', value: config.externalEmergencySignalUrl, type: 'string' },
                 { key: 'external_emergency_signal_fingerprint', value: config.externalEmergencySignalFingerprint, type: 'string' },
                 { key: 'external_emergency_signal_interval', value: config.externalEmergencySignalInterval > 0 ? config.externalEmergencySignalInterval : null, type: 'integer' },
@@ -508,6 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 { key: 'override_warp_endpoint', value: config.overrideWarpEndpoint, type: 'string' },
             ];
             return items.filter(item => {
+                if (item.windowsOnly && !isWindows) return false;
                 if (item.value === null || item.value === undefined) return false;
                 if (typeof item.value === 'string' && item.value.trim() === '') return false;
                 if (item.key === 'auto_connect') return true;
@@ -520,7 +536,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const needsConfigsWrapper = () => {
-            return appState.topLevel.multiUser || appState.topLevel.preLoginEnabled || appState.mode === 'multi';
+            const isWindows = appState.os === 'windows';
+            // Windows-only top-level features require configs wrapper
+            const hasWindowsFeatures = isWindows && (appState.topLevel.multiUser || appState.topLevel.preLoginEnabled);
+            return hasWindowsFeatures || appState.mode === 'multi';
         };
 
         const formatValueTag = (item, indent) => {
@@ -602,7 +621,22 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadButton.disabled = xmlString.startsWith('<!--');
     }
 
+    function updateDownloadButton() {
+        const filename = appState.os === 'macos' ? 'mdm.xml' : 'mdm.xml';
+        downloadButton.textContent = `Download ${filename.toUpperCase()}`;
+    }
+
     // --- INITIALIZATION ---
+    osSelect.addEventListener('change', (e) => {
+        appState.os = e.target.value;
+        // Reset Windows-only top-level settings when switching to macOS
+        if (appState.os === 'macos') {
+            appState.topLevel.multiUser = false;
+            appState.topLevel.preLoginEnabled = false;
+        }
+        render();
+    });
+
     modeSelect.addEventListener('change', (e) => {
         appState.mode = e.target.value;
         render();
@@ -613,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'mdm.xml';
+        a.download = 'mdm.xml'; // Same filename for both platforms
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
