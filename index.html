@@ -3,660 +3,1536 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare WARP MDM Configurator</title>
+    <title>Cloudflare One Client MDM Configurator</title>
+    <meta name="description" content="Generate mdm.xml configuration files for the Cloudflare One Client (formerly WARP) on Windows, macOS, and Linux.">
     <style>
-        /* --- Base & Typography --- */
+        /* ============================================================
+           Design Tokens
+           ============================================================ */
+        :root {
+            /* Cloudflare-inspired palette */
+            --cf-orange-500: #f6821f;
+            --cf-orange-600: #e8730d;
+            --cf-orange-700: #c25e0a;
+            --cf-orange-50: #fef3e7;
+
+            --cf-blue-600: #0051c3;
+            --cf-blue-500: #1976ed;
+            --cf-blue-50: #eaf2fd;
+
+            /* Neutrals */
+            --gray-50:  #f7f8fa;
+            --gray-100: #f1f3f5;
+            --gray-200: #e5e8ec;
+            --gray-300: #cfd4da;
+            --gray-400: #9aa3ae;
+            --gray-500: #6b7480;
+            --gray-600: #4b525b;
+            --gray-700: #353a42;
+            --gray-800: #1f2329;
+            --gray-900: #11141a;
+
+            /* Semantic */
+            --success-500: #22a06b;
+            --success-50:  #e6f6ee;
+            --warning-500: #d97706;
+            --warning-50:  #fef4e6;
+            --danger-500:  #d23037;
+            --danger-50:   #fdebec;
+
+            /* UI tokens */
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 2px rgba(17, 20, 26, 0.05);
+            --shadow-md: 0 1px 3px rgba(17, 20, 26, 0.06), 0 4px 12px rgba(17, 20, 26, 0.04);
+            --shadow-lg: 0 4px 16px rgba(17, 20, 26, 0.08), 0 12px 32px rgba(17, 20, 26, 0.06);
+
+            --transition: 150ms ease;
+        }
+
+        /* ============================================================
+           Reset & Base
+           ============================================================ */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-            background-color: #ffffff;
-            color: #1f2937;
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--gray-50);
+            color: var(--gray-800);
             margin: 0;
+            line-height: 1.55;
+            font-size: 14px;
+        }
+
+        h1, h2, h3, h4 { margin: 0; color: var(--gray-900); letter-spacing: -0.01em; }
+        p { margin: 0; color: var(--gray-600); }
+
+        a {
+            color: var(--cf-blue-600);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color var(--transition);
+        }
+        a:hover { color: var(--cf-blue-500); text-decoration: underline; }
+
+        code {
+            background: var(--gray-100);
+            color: var(--cf-orange-700);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+            font-size: 0.875em;
+        }
+
+        button { font-family: inherit; }
+        fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
+        legend { padding: 0; }
+
+        /* ============================================================
+           Layout
+           ============================================================ */
+        .app-shell {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 18px 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--cf-orange-500), var(--cf-orange-600));
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font-weight: 700;
+            box-shadow: var(--shadow-sm);
+        }
+        .brand-text h1 {
+            font-size: 1.0625rem;
+            font-weight: 600;
+        }
+        .brand-text p {
+            font-size: 0.8125rem;
+            color: var(--gray-500);
+            margin-top: 1px;
+        }
+
+        .app-main {
+            flex: 1;
+            padding: 32px 0 64px;
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+        .page-header h2 {
+            font-size: 1.625rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .page-header p {
+            font-size: 0.9375rem;
+            max-width: 720px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        @media (min-width: 1100px) {
+            .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        }
+
+        /* ============================================================
+           Cards / Panels
+           ============================================================ */
+        .panel {
+            background: #ffffff;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .panel-header h3 {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+        .panel-header .panel-subtitle {
+            font-size: 0.8125rem;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+        .panel-body { padding: 20px; }
+
+        /* Section grouping inside form */
+        .section {
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .section:last-child { margin-bottom: 0; }
+        .section-header {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--gray-50);
+            border: none;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            text-align: left;
+            font-family: inherit;
+            color: inherit;
+        }
+        .section-header:hover { background: var(--gray-100); }
+        .section-header:focus-visible {
+            outline: none;
+            box-shadow: inset 0 0 0 2px var(--cf-orange-500);
+        }
+        .section-title {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .section-body {
+            padding: 16px;
+        }
+        .section-body.collapsed { display: none; }
+        .section-toggle {
+            color: var(--gray-500);
+            font-size: 0.75rem;
+            transition: transform var(--transition);
+            line-height: 1;
+        }
+        .section-header[aria-expanded="false"] .section-toggle { transform: rotate(-90deg); }
+        .section-header[aria-expanded="false"] {
+            border-bottom-color: transparent;
+        }
+
+        /* ============================================================
+           Form elements
+           ============================================================ */
+        .field-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        @media (min-width: 640px) {
+            .field-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+        .field-label .label-tag {
+            font-size: 0.6875rem;
+            font-weight: 500;
+            padding: 1px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .label-tag.optional { background: var(--gray-100); color: var(--gray-500); }
+        .label-tag.required { background: var(--cf-blue-50); color: var(--cf-blue-600); }
+        .label-tag.windows { background: #e8f0fe; color: #1967d2; }
+        .label-tag.new { background: var(--success-50); color: var(--success-500); }
+
+        .field-help {
+            font-size: 0.75rem;
+            color: var(--gray-500);
             line-height: 1.5;
         }
-        .container {
-            max-width: 1280px;
-            margin-left: auto;
-            margin-right: auto;
-            padding: 1rem;
+        .field-error {
+            font-size: 0.75rem;
+            color: var(--danger-500);
+            display: none;
         }
-        @media (min-width: 640px) { .container { padding: 1.5rem; } }
-        @media (min-width: 1024px) { .container { padding: 2rem; } }
+        .field.has-error .field-error { display: block; }
+        .field.has-error .form-input,
+        .field.has-error .form-select { border-color: var(--danger-500); }
 
-        h1 { font-size: 1.875rem; font-weight: 700; color: #111827; }
-        h2 { font-size: 1.125rem; font-weight: 600; color: #ffffff; margin-bottom: 1rem;}
-        p { color: #4b5563; margin-top: 0.5rem; }
-        code { background-color: #f3f4f6; color: #F38020; padding: 0.125rem 0.25rem; border-radius: 0.25rem; font-family: monospace; }
-        a { color: #F97316; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        fieldset { border: none; padding: 0; margin: 0; }
-        legend { font-size: 1.125rem; font-weight: 600; color: #111827; margin-bottom: 1rem; padding: 0; }
-        label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
-        
-        /* --- Layout --- */
-        .grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
-        @media (min-width: 1024px) { .grid { grid-template-columns: 1fr 1fr; } }
-        .flex-col { display: flex; flex-direction: column; }
-        .flex-grow { flex-grow: 1; }
-
-        /* --- Components --- */
-        .header, .footer { margin-bottom: 2rem; }
-        .footer { margin-top: 3rem; text-align: center; font-size: 0.875rem; color: #6b7281; }
-        .disclaimer-box { background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 0.875rem; padding: 1rem; margin-bottom: 2rem; border-radius: 0.5rem; }
-        .disclaimer-box .font-bold { font-weight: 700; }
-        .form-section { background-color: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; }
-        .xml-section { background-color: #1f2937; color: #ffffff; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
-        .xml-preview-container { background-color: #111827; border-radius: 0.375rem; flex-grow: 1; position: relative; }
-        .xml-preview {
+        .form-input, .form-select, .form-textarea {
             width: 100%;
-            height: 100%;
-            font-family: monospace;
+            background: #fff;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
             font-size: 0.875rem;
-            color: #6ee7b7;
-            padding: 1rem;
-            overflow: auto;
-            position: absolute;
-            top: 0;
-            left: 0;
-            margin: 0;
-            white-space: pre-wrap;
-            word-break: break-all;
-            box-sizing: border-box; /* <-- FIX: This prevents padding from adding to the width */
+            color: var(--gray-900);
+            font-family: inherit;
+            transition: border-color var(--transition), box-shadow var(--transition);
         }
-        
-        /* --- Form Elements --- */
-        .form-input, .form-select {
-            width: 100%;
-            background-color: #ffffff;
-            border: 1px solid #d1d5db;
-            border-radius: 0.375rem;
-            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            padding: 0.5rem 0.75rem;
-            color: #111827;
-            box-sizing: border-box;
-        }
+        .form-input:hover, .form-select:hover { border-color: var(--gray-400); }
         .form-input:focus, .form-select:focus {
-            outline: 2px solid transparent;
-            outline-offset: 2px;
-            box-shadow: 0 0 0 2px #fb923c;
+            outline: none;
+            border-color: var(--cf-orange-500);
+            box-shadow: 0 0 0 3px rgba(246, 130, 31, 0.15);
         }
-        .form-checkbox { height: 1.25rem; width: 1.25rem; border-radius: 0.25rem; border-color: #d1d5db; color: #F97316; }
-        .form-checkbox:focus { box-shadow: 0 0 0 2px #fb923c; }
-        .checkbox-label { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; }
-        .input-group { margin-bottom: 1.5rem; }
-        .input-description { margin-top: 0.5rem; font-size: 0.75rem; color: #6b7281; }
-        .form-divider { border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: 1rem; }
+        .form-input::placeholder { color: var(--gray-400); }
 
-        /* --- Buttons --- */
-        .button {
-            width: 100%;
-            color: #ffffff;
-            font-weight: 700;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-            transition: background-color 0.2s;
+        .form-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7480' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
-        .button-primary { background-color: #F38020; }
-        .button-primary:hover { background-color: #ea580c; }
-        .button-secondary { background-color: #F97316; }
-        .button-secondary:hover { background-color: #ea580c; }
-        .button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-        .button-remove { color: #dc2626; font-weight: 600; font-size: 0.875rem; background: none; box-shadow: none; }
-        .button-remove:hover { color: #b91c1c; }
-        
-        /* --- Multi-Org List --- */
-        .multi-org-list-container { margin-top: 2rem; }
-        .multi-org-list-header { font-size: 1.125rem; font-weight: 600; color: #1f2937; margin-bottom: 1rem; border-top: 1px solid #e5e7eb; padding-top: 1rem; }
-        .multi-org-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
-        .multi-org-list-item { background-color: #ffffff; border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
-        .list-item-content { display: flex; align-items: flex-start; justify-content: space-between; }
-        .list-item-details .font-bold { font-weight: 700; color: #111827; }
-        .list-item-details .font-normal { font-weight: 400; color: #4b5563; }
-        .list-item-details p { margin: 0; margin-top: 0.25rem; }
+
+        /* Checkbox/toggle */
+        .toggle-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gray-200);
+            background: #fff;
+            transition: background var(--transition);
+        }
+        .toggle-row:hover { background: var(--gray-50); }
+        .toggle-row input[type="checkbox"] {
+            margin: 0;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--cf-orange-500);
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .toggle-content { flex: 1; min-width: 0; }
+        .toggle-content .field-label { margin-bottom: 2px; }
+        .toggle-content .field-help { margin: 0; }
+
+        /* ============================================================
+           Top-level controls (OS / Mode picker)
+           ============================================================ */
+        .target-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            padding: 20px;
+            border-bottom: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+        @media (min-width: 640px) {
+            .target-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        .segmented {
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: 1fr;
+            gap: 4px;
+            padding: 4px;
+            background: var(--gray-100);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gray-200);
+        }
+        .segmented input { display: none; }
+        .segmented label {
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--gray-600);
+            transition: all var(--transition);
+            user-select: none;
+        }
+        .segmented label:hover { color: var(--gray-900); }
+        .segmented input:checked + label {
+            background: #fff;
+            color: var(--gray-900);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .target-label {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        /* ============================================================
+           Buttons
+           ============================================================ */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px 16px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all var(--transition);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(246, 130, 31, 0.25);
+        }
+        .btn-primary {
+            background: var(--cf-orange-500);
+            color: #fff;
+            border-color: var(--cf-orange-500);
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: var(--cf-orange-600);
+            border-color: var(--cf-orange-600);
+        }
+        .btn-primary:disabled {
+            background: var(--gray-300);
+            border-color: var(--gray-300);
+            color: var(--gray-500);
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #fff;
+            color: var(--gray-700);
+            border-color: var(--gray-300);
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--gray-50);
+            color: var(--gray-900);
+            border-color: var(--gray-400);
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--gray-600);
+            border-color: transparent;
+            padding: 6px 10px;
+        }
+        .btn-ghost:hover { background: var(--gray-100); color: var(--gray-900); }
+        .btn-danger-ghost {
+            background: transparent;
+            color: var(--danger-500);
+            border-color: transparent;
+            padding: 4px 8px;
+            font-size: 0.8125rem;
+        }
+        .btn-danger-ghost:hover {
+            background: var(--danger-50);
+        }
+        .btn-block { width: 100%; }
+        .btn-sm { padding: 6px 10px; font-size: 0.8125rem; }
+
+        /* ============================================================
+           Callouts / Alerts
+           ============================================================ */
+        .callout {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            font-size: 0.8125rem;
+            border: 1px solid;
+            line-height: 1.5;
+        }
+        .callout-icon {
+            flex-shrink: 0;
+            font-weight: 700;
+            font-size: 0.875rem;
+            margin-top: 1px;
+        }
+        .callout-info {
+            background: var(--cf-blue-50);
+            border-color: #c7dcf9;
+            color: #0a3a87;
+        }
+        .callout-warning {
+            background: var(--warning-50);
+            border-color: #f5d49a;
+            color: #8a4d00;
+        }
+        .callout-success {
+            background: var(--success-50);
+            border-color: #b7e3cd;
+            color: #155637;
+        }
+        .callout strong { font-weight: 600; }
+        .callout p { color: inherit; margin: 0; }
+
+        .deployment-note {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            font-size: 0.8125rem;
+            color: var(--gray-600);
+        }
+        .deployment-note strong {
+            color: var(--gray-800);
+            font-weight: 600;
+        }
+        .deployment-note code {
+            background: #fff;
+            border: 1px solid var(--gray-200);
+        }
+
+        /* ============================================================
+           XML preview
+           ============================================================ */
+        .xml-panel {
+            position: sticky;
+            top: 24px;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 48px);
+        }
+
+        .xml-panel .panel-body {
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .xml-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .xml-toolbar .filename {
+            font-family: ui-monospace, "SF Mono", monospace;
+            font-size: 0.8125rem;
+            color: var(--gray-500);
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: var(--gray-100);
+        }
+
+        .xml-preview-wrap {
+            flex: 1;
+            min-height: 0;
+            background: #0e1116;
+            position: relative;
+            overflow: hidden;
+        }
+        .xml-preview {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            padding: 18px 20px;
+            overflow: auto;
+            font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+            font-size: 0.8125rem;
+            line-height: 1.55;
+            color: #d4d8de;
+            white-space: pre;
+            tab-size: 2;
+        }
+
+        /* Syntax highlight */
+        .xml-preview .tag      { color: #79c0ff; }
+        .xml-preview .key      { color: #ffa657; }
+        .xml-preview .str      { color: #a5d6ff; }
+        .xml-preview .num      { color: #79c0ff; }
+        .xml-preview .bool     { color: #d2a8ff; }
+        .xml-preview .comment  { color: #6b7480; font-style: italic; }
+        .xml-preview .decl     { color: #6b7480; }
+
+        .xml-empty {
+            padding: 24px;
+            color: var(--gray-400);
+            font-style: italic;
+            font-family: ui-monospace, "SF Mono", monospace;
+            font-size: 0.8125rem;
+        }
+
+        .xml-actions {
+            padding: 12px 16px;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            gap: 8px;
+            background: #fff;
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        }
+
+        /* ============================================================
+           Multi-org list
+           ============================================================ */
+        .orgs-list-empty {
+            padding: 24px;
+            text-align: center;
+            background: var(--gray-50);
+            border: 1px dashed var(--gray-300);
+            border-radius: var(--radius-md);
+            color: var(--gray-500);
+            font-size: 0.8125rem;
+        }
+        .orgs-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .org-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            background: #fff;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-md);
+        }
+        .org-item-info { min-width: 0; flex: 1; }
+        .org-item-name {
+            font-weight: 600;
+            color: var(--gray-900);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .org-item-meta {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .badge.fedramp { background: #ede9fe; color: #6e3aa9; }
+
+        /* ============================================================
+           Footer
+           ============================================================ */
+        .app-footer {
+            text-align: center;
+            padding: 24px 0 32px;
+            font-size: 0.8125rem;
+            color: var(--gray-500);
+        }
+        .app-footer p + p { margin-top: 4px; }
+
+        /* ============================================================
+           Toast
+           ============================================================ */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            background: var(--gray-900);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            box-shadow: var(--shadow-lg);
+            opacity: 0;
+            pointer-events: none;
+            transition: all var(--transition);
+            z-index: 100;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ============================================================
+           Helpers
+           ============================================================ */
+        .stack-sm > * + * { margin-top: 8px; }
+        .stack > * + * { margin-top: 16px; }
+        .stack-lg > * + * { margin-top: 24px; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div class="container">
-<header class="header">
-            <h1>Cloudflare WARP MDM Configurator</h1>
-            <p>
-Create a custom MDM configuration file for deploying the Cloudflare WARP client.
-            </p>
+    <div class="app-shell">
+        <header class="app-header">
+            <div class="container brand">
+                <div class="brand-logo" aria-hidden="true">CF</div>
+                <div class="brand-text">
+                    <h1>Cloudflare One Client &mdash; MDM Configurator</h1>
+                    <p>Generate <code>mdm.xml</code> for managed deployments</p>
+                </div>
+            </div>
         </header>
-        <div id="disclaimer-box" class="disclaimer-box">
-            <p><span class="font-bold">Tip:</span> Select your target operating system to see available configuration options.</p>
-        </div>
 
-        <div class="grid">
-<!-- Form Section -->
-            <div class="form-section">
-                <div class="input-group">
-                    <label for="os-select">Target Operating System</label>
-                    <select id="os-select" class="form-select">
-                        <option value="windows">Windows</option>
-                        <option value="macos">macOS</option>
-                    </select>
+        <main class="app-main">
+            <div class="container">
+                <div class="page-header">
+                    <h2>Build your deployment file</h2>
+                    <p>
+                        Configure the Cloudflare One Client (formerly WARP) for Windows, macOS, or Linux.
+                        Settings are written to a standards-compliant <code>mdm.xml</code> as you type.
+                    </p>
                 </div>
-                <div class="input-group">
-                    <label for="mode-select">Deployment Type</label>
-                    <select id="mode-select" class="form-select">
-                        <option value="single">Single Organization</option>
-                        <option value="multi">Multi-Organization</option>
-                    </select>
-                </div>
-                <div id="form-container" class="form-divider">
-                    <!-- Form content will be injected here by JavaScript -->
+
+                <div class="layout">
+                    <!-- ============================================
+                         Form column
+                         ============================================ -->
+                    <section class="panel" aria-label="Configuration form">
+                        <div class="target-grid">
+                            <div>
+                                <label class="target-label">Target operating system</label>
+                                <div class="segmented" role="radiogroup" aria-label="Target operating system">
+                                    <input type="radio" name="os" id="os-windows" value="windows" checked />
+                                    <label for="os-windows">Windows</label>
+                                    <input type="radio" name="os" id="os-macos" value="macos" />
+                                    <label for="os-macos">macOS</label>
+                                    <input type="radio" name="os" id="os-linux" value="linux" />
+                                    <label for="os-linux">Linux</label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="target-label">Deployment type</label>
+                                <div class="segmented" role="radiogroup" aria-label="Deployment type">
+                                    <input type="radio" name="mode" id="mode-single" value="single" checked />
+                                    <label for="mode-single">Single organization</label>
+                                    <input type="radio" name="mode" id="mode-multi" value="multi" />
+                                    <label for="mode-multi">Multi-organization</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel-body">
+                            <div id="deployment-note" class="deployment-note" style="margin-bottom: 16px;"></div>
+                            <div id="form-container"></div>
+                        </div>
+                    </section>
+
+                    <!-- ============================================
+                         XML preview column
+                         ============================================ -->
+                    <section class="panel xml-panel" aria-label="Generated XML preview">
+                        <div class="panel-header">
+                            <div>
+                                <h3>Generated configuration</h3>
+                                <div class="panel-subtitle">Preview of <code>mdm.xml</code></div>
+                            </div>
+                            <div class="xml-toolbar">
+                                <span class="filename">mdm.xml</span>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="xml-preview-wrap">
+                                <pre id="xml-output" class="xml-preview" aria-live="polite"></pre>
+                            </div>
+                            <div class="xml-actions">
+                                <button id="copy-button" class="btn btn-secondary" type="button">Copy XML</button>
+                                <button id="download-button" class="btn btn-primary btn-block" type="button">Download mdm.xml</button>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
+        </main>
 
-            <!-- XML Output and Download Section -->
-            <div class="flex-col">
-                <div class="xml-section flex-col flex-grow">
-                    <h2>Generated mdm.xml</h2>
-                    <div class="xml-preview-container">
-                        <pre id="xml-output" class="xml-preview"></pre>
-                    </div>
-                </div>
-                 <div style="margin-top: 1.5rem;">
-                    <button id="download-button" class="button button-primary">
-                        Download MDM.XML
-                    </button>
-                </div>
+        <footer class="app-footer">
+            <div class="container">
+                <p>This is an unofficial tool. Always verify generated profiles before deploying to production.</p>
+                <p>
+                    Reference:
+                    <a href="https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/parameters/" target="_blank" rel="noopener">official Cloudflare MDM parameters documentation</a>
+                </p>
             </div>
-        </div>
-         <footer class="footer">
-            <p>This is an unofficial tool. Always verify generated profiles before deploying.</p>
-            <p>Refer to the official <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/">Cloudflare Documentation</a> for details.</p>
         </footer>
     </div>
 
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const paramDocs = {
-        organization: "Your organization's team name from the Zero Trust dashboard.",
-        displayName: "A user-friendly name for this configuration (e.g., Production).",
-        serviceMode: "Sets the client's operational mode.",
-        gatewayId: "Your Gateway DoH subdomain. Required for DNS-only policy enforcement.",
-        supportUrl: "A URL for users to access for support, like your internal help desk (https:// or mailto:).",
-        switchLocked: "If true, users cannot disable the WARP client switch.",
-        autoConnect: "The client will automatically reconnect after the specified number of minutes. 0 allows indefinite off state.",
-        onboarding: "If disabled, hides onboarding screens that ask users to review the privacy policy.",
-        enablePostQuantum: "Enables post-quantum cryptography for the WARP tunnel.",
-        overrideEndpoint: "For use with China network partner or third-party partner. Enter the IP address for the respective endpoint.",
-        authClientId: "The Client ID of your service token for Service Auth enrollment.",
-        authClientSecret: "The Client Secret of your service token for Service Auth enrollment.",
-        multiUser: "Enables multiple user registrations on a Windows device. Each Windows user gets their own WARP registration.",
-        preLogin: "Allows WARP to connect with a service token before a user completes the initial Windows login.",
-        enableNetbt: "Enables NetBIOS over TCP/IP on the WARP tunnel interface (Windows only, disabled by default for security).",
-        enablePmtud: "Enables Path MTU Discovery to optimize connection performance.",
-        warpTunnelProtocol: "The protocol used to route IP traffic from the device to Cloudflare Gateway.",
-        proxyPort: "The localhost SOCKS proxy port when using proxy service mode (0-65535).",
-        externalEmergencySignalUrl: "HTTPS endpoint that WARP will poll for an External Emergency Disconnect signal. Must use https:// with an IP address.",
-        externalEmergencySignalFingerprint: "SHA-256 fingerprint to validate the external emergency signal HTTPS endpoint.",
-        externalEmergencySignalInterval: "How often (in seconds) WARP will poll the external emergency signal URL. Minimum 30, default 300."
+    'use strict';
+
+    // ============================================================
+    // Field metadata
+    // ============================================================
+    const PARAM_DOCS = {
+        organization: 'Your Cloudflare Zero Trust team name from the dashboard.',
+        displayName: 'A user-friendly name shown in the Cloudflare One Client GUI (required for multi-org and when using top-level features).',
+        serviceMode: 'Operational mode for the client.',
+        gatewayId: 'Gateway DoH subdomain. Required for DNS-only policy enforcement when deploying without a team name.',
+        supportUrl: 'Re-enables the in-app Send Feedback button and routes users to your help desk. Use https:// or mailto:.',
+        switchLocked: 'Prevents users from disabling the client. Requires auto_connect to be set.',
+        autoConnect: 'Auto-reconnect interval in minutes (0–1440). 0 allows the switch to stay off indefinitely.',
+        onboarding: 'Show the privacy-policy onboarding screens on first launch.',
+        enablePostQuantum: 'Enable post-quantum key agreement. Requires the MASQUE protocol (default for new deployments).',
+        environment: 'Target Cloudflare environment. Use FedRAMP High for FedRAMP-authorized accounts.',
+        overrideEndpoint: 'For Cloudflare China network or third-party network partner deployments. Provide the IP address only.',
+        authClientId: 'Service token Client ID for Service Auth device enrollment.',
+        authClientSecret: 'Service token Client Secret for Service Auth device enrollment.',
+        multiUser: 'Each Windows user gets their own client registration. Requires the configs array.',
+        preLogin: 'Connect with a service token before Windows login. Requires the configs array.',
+        enableNetbt: 'Enable NetBIOS over TCP/IP on the tunnel. Disabled by default for security; only needed for legacy apps.',
+        enablePmtud: 'Enable Path MTU Discovery to optimize connection performance.',
+        warpTunnelProtocol: 'Protocol used to route IP traffic from the device to Cloudflare Gateway.',
+        proxyPort: 'Localhost SOCKS proxy port (0–65535) when using proxy service mode.',
+        externalEmergencySignalUrl: 'HTTPS endpoint polled for an External Emergency Disconnect signal. Must use https:// with an IP address.',
+        externalEmergencySignalFingerprint: 'SHA-256 fingerprint that validates the emergency signal HTTPS endpoint.',
+        externalEmergencySignalInterval: 'Polling frequency in seconds (minimum 30, default 300).'
     };
 
-    const allFields = [
-        { id: 'organization', label: 'Team Name / Organization', placeholder: 'your-team-name', description: paramDocs.organization },
-        { id: 'displayName', label: 'Display Name', placeholder: 'Production Environment', description: paramDocs.displayName },
-        { id: 'authClientId', label: 'Auth Client ID', placeholder: '88bf3b6d86161464f6509f7219099e57.access', description: paramDocs.authClientId },
-        { id: 'authClientSecret', label: 'Auth Client Secret', placeholder: 'bdd31cbc4dec990953e39163fbbb194c...', description: paramDocs.authClientSecret },
-        { id: 'serviceMode', label: 'Service Mode', type: 'select', options: [
-            { value: 'warp', label: 'Gateway with WARP' },
-            { value: '1dot1', label: 'Gateway with DoH' },
-            { value: 'proxy', label: 'Proxy Mode' },
-            { value: 'tunnelonly', label: 'Secure Web Gateway (no DNS)' },
-            { value: 'postureonly', label: 'Device Information Only' }
-        ], description: paramDocs.serviceMode },
-        { id: 'proxyPort', label: 'Proxy Port', type: 'number', placeholder: '44444', description: paramDocs.proxyPort, showWhen: { field: 'serviceMode', value: 'proxy' } },
-        { id: 'gatewayId', label: 'Gateway Unique ID (DoH Subdomain)', placeholder: 'your-doh-subdomain', description: paramDocs.gatewayId },
-        { id: 'supportUrl', label: 'Support URL', placeholder: 'https://helpdesk.example.com', description: paramDocs.supportUrl },
-        { id: 'autoConnect', label: 'Auto Connect (minutes)', type: 'number', description: paramDocs.autoConnect },
-        { id: 'switchLocked', label: 'Lock WARP Switch', type: 'checkbox', description: paramDocs.switchLocked },
-        { id: 'onboarding', label: 'Show Onboarding Screens', type: 'checkbox', description: paramDocs.onboarding },
-        { id: 'enablePostQuantum', label: 'Enable Post-Quantum Cryptography', type: 'checkbox', description: paramDocs.enablePostQuantum },
-        { id: 'warpTunnelProtocol', label: 'Tunnel Protocol', type: 'select', options: [
-            { value: 'masque', label: 'MASQUE (default)' },
-            { value: 'wireguard', label: 'WireGuard' }
-        ], description: paramDocs.warpTunnelProtocol },
-        { id: 'enablePmtud', label: 'Enable Path MTU Discovery', type: 'checkbox', description: paramDocs.enablePmtud },
-        { id: 'enableNetbt', label: 'Enable NetBIOS over TCP/IP', type: 'checkbox', description: paramDocs.enableNetbt, windowsOnly: true },
+    const SERVICE_MODES = [
+        { value: 'warp',        label: 'Gateway with WARP (default)' },
+        { value: '1dot1',       label: 'Gateway with DoH (DNS only)' },
+        { value: 'proxy',       label: 'Local proxy' },
+        { value: 'tunnelonly',  label: 'Traffic only (Secure Web Gateway)' },
+        { value: 'postureonly', label: 'Posture only' }
     ];
 
-    const chinaFields = [
-        { id: 'overrideApiEndpoint', label: 'Override API Endpoint', placeholder: '203.0.113.0', description: paramDocs.overrideEndpoint },
-        { id: 'overrideDohEndpoint', label: 'Override DoH Endpoint', placeholder: '203.0.113.0', description: paramDocs.overrideEndpoint },
-        { id: 'overrideWarpEndpoint', label: 'Override WARP Endpoint', placeholder: '203.0.113.0:500', description: paramDocs.overrideEndpoint },
+    const TUNNEL_PROTOCOLS = [
+        { value: 'masque',    label: 'MASQUE (default)' },
+        { value: 'wireguard', label: 'WireGuard' }
     ];
 
-    const emergencyDisconnectFields = [
-        { id: 'externalEmergencySignalUrl', label: 'External Emergency Signal URL', placeholder: 'https://192.0.2.1:3333/status/disconnect', description: paramDocs.externalEmergencySignalUrl },
-        { id: 'externalEmergencySignalFingerprint', label: 'External Emergency Signal Fingerprint', placeholder: 'DD4F4806C57A5BBAF1AA5B080F0541DA75DB468D0A1FE731310149500CCD8662', description: paramDocs.externalEmergencySignalFingerprint },
-        { id: 'externalEmergencySignalInterval', label: 'External Emergency Signal Interval (seconds)', type: 'number', placeholder: '300', description: paramDocs.externalEmergencySignalInterval },
+    const ENVIRONMENTS = [
+        { value: 'normal',       label: 'Normal (default)' },
+        { value: 'fedramp_high', label: 'FedRAMP High' }
     ];
 
-    const topLevelFields = [
-        { id: 'multiUser', label: 'Enable Multi-User Mode', type: 'checkbox', description: paramDocs.multiUser, windowsOnly: true },
-        { id: 'preLoginEnabled', label: 'Enable Pre-Login', type: 'checkbox', description: paramDocs.preLogin, windowsOnly: true },
-    ];
-
-    const preLoginFields = [
-        { id: 'preLoginOrganization', label: 'Pre-Login Organization', placeholder: 'your-team-name', description: 'Organization for pre-login registration.' },
-        { id: 'preLoginAuthClientId', label: 'Pre-Login Auth Client ID', placeholder: '88bf3b6d86161464f6509f7219099e57.access', description: 'Service token Client ID for pre-login.' },
-        { id: 'preLoginAuthClientSecret', label: 'Pre-Login Auth Client Secret', placeholder: 'bdd31cbc4dec990953e39163fbbb194c...', description: 'Service token Client Secret for pre-login.' },
-    ];
-
-    function createFieldHtml(field) {
-        const { id, label, type, placeholder, description, options } = field;
-        let inputHtml = '';
-        if (type === 'select') {
-            const optionsHtml = options.map(opt => {
-                if (typeof opt === 'object') {
-                    return `<option value="${opt.value}">${opt.label}</option>`;
-                }
-                return `<option value="${opt}">${opt.charAt(0).toUpperCase() + opt.slice(1).replace(/_/g, ' ')}</option>`;
-            }).join('');
-            inputHtml = `<select id="${id}" class="form-select">${optionsHtml}</select>`;
-        } else if (type === 'checkbox') {
-            inputHtml = `<label class="checkbox-label"><input id="${id}" type="checkbox" class="form-checkbox" /><span>Enable</span></label>`;
-        } else {
-            inputHtml = `<input type="${type || 'text'}" id="${id}" placeholder="${placeholder || ''}" class="form-input" />`;
+    // Each field is rendered through createField() with explicit metadata.
+    const ORG_SECTIONS = [
+        {
+            id: 'identity',
+            title: 'Identity & Enrollment',
+            defaultOpen: true,
+            fields: [
+                { id: 'organization',     label: 'Team name',        tag: 'required', placeholder: 'your-team-name', help: PARAM_DOCS.organization },
+                { id: 'displayName',      label: 'Display name',     tag: 'optional', placeholder: 'Production',     help: PARAM_DOCS.displayName, requiredForMulti: true },
+                { id: 'authClientId',     label: 'Auth Client ID',     tag: 'optional', placeholder: '88bf3b6d86161464f6509f7219099e57.access', help: PARAM_DOCS.authClientId },
+                { id: 'authClientSecret', label: 'Auth Client Secret', tag: 'optional', placeholder: 'bdd31cbc4dec990953e39163fbbb194c…', help: PARAM_DOCS.authClientSecret, type: 'password' },
+                { id: 'environment',      label: 'Environment',        tag: 'new',      type: 'select', options: ENVIRONMENTS, help: PARAM_DOCS.environment }
+            ]
+        },
+        {
+            id: 'behavior',
+            title: 'Client behavior',
+            defaultOpen: true,
+            fields: [
+                { id: 'serviceMode',          label: 'Service mode',          type: 'select', options: SERVICE_MODES, help: PARAM_DOCS.serviceMode },
+                { id: 'proxyPort',            label: 'SOCKS proxy port',      type: 'number', placeholder: '44444', help: PARAM_DOCS.proxyPort, showWhen: { field: 'serviceMode', value: 'proxy' } },
+                { id: 'gatewayId',            label: 'Gateway DoH subdomain', tag: 'optional', placeholder: 'your-doh-subdomain', help: PARAM_DOCS.gatewayId },
+                { id: 'supportUrl',           label: 'Support URL',           tag: 'optional', placeholder: 'https://helpdesk.example.com', help: PARAM_DOCS.supportUrl },
+                { id: 'autoConnect',          label: 'Auto-connect (minutes)', type: 'number', placeholder: '0', help: PARAM_DOCS.autoConnect },
+                { id: 'switchLocked',         label: 'Lock client switch',                  type: 'checkbox', help: PARAM_DOCS.switchLocked },
+                { id: 'onboarding',           label: 'Show onboarding screens',             type: 'checkbox', help: PARAM_DOCS.onboarding },
+                { id: 'warpTunnelProtocol',   label: 'Tunnel protocol',                     type: 'select', options: TUNNEL_PROTOCOLS, help: PARAM_DOCS.warpTunnelProtocol },
+                { id: 'enablePostQuantum',    label: 'Post-quantum cryptography',           type: 'checkbox', help: PARAM_DOCS.enablePostQuantum },
+                { id: 'enablePmtud',          label: 'Path MTU Discovery',                  type: 'checkbox', help: PARAM_DOCS.enablePmtud },
+                { id: 'enableNetbt',          label: 'NetBIOS over TCP/IP',                 type: 'checkbox', help: PARAM_DOCS.enableNetbt, windowsOnly: true }
+            ]
+        },
+        {
+            id: 'emergency',
+            title: 'External emergency disconnect',
+            defaultOpen: false,
+            fields: [
+                { id: 'externalEmergencySignalUrl',         label: 'Signal URL',                       tag: 'optional', placeholder: 'https://192.0.2.1:3333/status/disconnect', help: PARAM_DOCS.externalEmergencySignalUrl },
+                { id: 'externalEmergencySignalFingerprint', label: 'SHA-256 fingerprint',              tag: 'optional', placeholder: 'DD4F4806C57A5BBAF1AA5B080F0541DA75DB468D0A1FE731310149500CCD8662', help: PARAM_DOCS.externalEmergencySignalFingerprint },
+                { id: 'externalEmergencySignalInterval',    label: 'Polling interval (seconds)',       type: 'number', placeholder: '300', help: PARAM_DOCS.externalEmergencySignalInterval }
+            ]
+        },
+        {
+            id: 'overrides',
+            title: 'Endpoint overrides (China / partner networks)',
+            defaultOpen: false,
+            fields: [
+                { id: 'overrideApiEndpoint',  label: 'API endpoint',   tag: 'optional', placeholder: '203.0.113.0',     help: PARAM_DOCS.overrideEndpoint },
+                { id: 'overrideDohEndpoint',  label: 'DoH endpoint',   tag: 'optional', placeholder: '203.0.113.0',     help: PARAM_DOCS.overrideEndpoint },
+                { id: 'overrideWarpEndpoint', label: 'WARP endpoint',  tag: 'optional', placeholder: '203.0.113.0:500', help: PARAM_DOCS.overrideEndpoint }
+            ]
         }
-        return `<div class="input-group"><label for="${id}">${label}</label>${inputHtml}${description ? `<p class="input-description">${description}</p>` : ''}</div>`;
-    }
+    ];
 
-    // --- STATE MANAGEMENT ---
-    const initialConfigState = {
-        organization: '', serviceMode: 'warp', gatewayId: '', supportUrl: '', switchLocked: true, autoConnect: 0,
-        onboarding: true, enablePostQuantum: false, enablePmtud: false, enableNetbt: false, warpTunnelProtocol: 'masque', proxyPort: 0,
-        overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: '', authClientId: '', authClientSecret: '', displayName: '',
-        externalEmergencySignalUrl: '', externalEmergencySignalFingerprint: '', externalEmergencySignalInterval: 0
+    const TOP_LEVEL_FIELDS = [
+        { id: 'multiUser',       label: 'Enable multi-user mode',  type: 'checkbox', help: PARAM_DOCS.multiUser, windowsOnly: true },
+        { id: 'preLoginEnabled', label: 'Enable pre-login mode',   type: 'checkbox', help: PARAM_DOCS.preLogin,   windowsOnly: true }
+    ];
+
+    const PRELOGIN_FIELDS = [
+        { id: 'preLoginOrganization',     label: 'Pre-login team name', tag: 'required', placeholder: 'your-team-name',                          help: 'Team name used for the pre-login service-token registration.' },
+        { id: 'preLoginAuthClientId',     label: 'Pre-login Client ID', tag: 'required', placeholder: '88bf3b6d86161464f6509f7219099e57.access', help: 'Service token Client ID used during pre-login.' },
+        { id: 'preLoginAuthClientSecret', label: 'Pre-login Client Secret', tag: 'required', type: 'password', placeholder: 'bdd31cbc4dec990953e39163fbbb194c…', help: 'Service token Client Secret used during pre-login.' }
+    ];
+
+    // ============================================================
+    // State
+    // ============================================================
+    const initialOrgConfig = {
+        organization: '', displayName: '',
+        authClientId: '', authClientSecret: '',
+        environment: 'normal',
+        serviceMode: 'warp', proxyPort: 0,
+        gatewayId: '', supportUrl: '',
+        autoConnect: 0,
+        switchLocked: true, onboarding: true,
+        warpTunnelProtocol: 'masque',
+        enablePostQuantum: false, enablePmtud: false, enableNetbt: false,
+        externalEmergencySignalUrl: '', externalEmergencySignalFingerprint: '', externalEmergencySignalInterval: 0,
+        overrideApiEndpoint: '', overrideDohEndpoint: '', overrideWarpEndpoint: ''
     };
 
-    const initialTopLevelState = {
-        multiUser: false,
-        preLoginEnabled: false,
-        preLoginOrganization: '',
-        preLoginAuthClientId: '',
-        preLoginAuthClientSecret: ''
+    const initialTopLevel = {
+        multiUser: false, preLoginEnabled: false,
+        preLoginOrganization: '', preLoginAuthClientId: '', preLoginAuthClientSecret: ''
     };
-    
-    let appState = {
+
+    const state = {
         os: 'windows',
         mode: 'single',
-        singleOrgConfig: { ...initialConfigState },
-        multiOrgConfigs: [],
-        newMultiOrgConfig: { ...initialConfigState },
-        topLevel: { ...initialTopLevelState }
+        sectionsCollapsed: {},
+        singleOrg:      structuredClone(initialOrgConfig),
+        newOrg:         structuredClone(initialOrgConfig),
+        orgs:           [],
+        topLevel:       structuredClone(initialTopLevel)
     };
 
-    // --- DOM REFERENCES ---
-    const osSelect = document.getElementById('os-select');
-    const modeSelect = document.getElementById('mode-select');
-    const formContainer = document.getElementById('form-container');
-    const xmlOutputEl = document.getElementById('xml-output');
-    const downloadButton = document.getElementById('download-button');
+    // ============================================================
+    // Helpers
+    // ============================================================
+    const $  = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-    // --- RENDER/UPDATE FUNCTIONS ---
-    function filterFieldsByOs(fields) {
-        return fields.filter(f => !f.windowsOnly || appState.os === 'windows');
+    const escapeHtml = (s) => String(s).replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&#39;','"':'&quot;'}[c]));
+    const escapeXml  = (s) => String(s).replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&apos;','"':'&quot;'}[c]));
+
+    const isWindows = () => state.os === 'windows';
+    const filterByOs = (fields) => fields.filter(f => !f.windowsOnly || isWindows());
+
+    // Validation helpers
+    const isHttpsIp = (s) => /^https:\/\/(?:\d{1,3}(?:\.\d{1,3}){3}|\[?[0-9a-fA-F:]+\]?)(?::\d+)?(?:\/.*)?$/.test(s);
+    const isIpv4    = (s) => /^\d{1,3}(?:\.\d{1,3}){3}$/.test(s);
+    const isIpv6    = (s) => /^[0-9a-fA-F:]+$/.test(s) && s.includes(':');
+    const isIpAddr  = (s) => isIpv4(s) || isIpv6(s);
+    const isIpPort  = (s) => /^(?:\d{1,3}(?:\.\d{1,3}){3}|\[?[0-9a-fA-F:]+\]?):\d+$/.test(s);
+    const isSha256  = (s) => /^[A-Fa-f0-9]{64}$/.test(s);
+
+    function validateConfig(c) {
+        const errors = {};
+        if (c.supportUrl && !/^(https:\/\/|mailto:)/i.test(c.supportUrl)) {
+            errors.supportUrl = 'Must start with https:// or mailto:';
+        }
+        if (c.autoConnect !== '' && c.autoConnect !== null) {
+            const n = Number(c.autoConnect);
+            if (!Number.isInteger(n) || n < 0 || n > 1440) errors.autoConnect = 'Must be an integer between 0 and 1440.';
+        }
+        if (c.proxyPort) {
+            const p = Number(c.proxyPort);
+            if (!Number.isInteger(p) || p < 0 || p > 65535) errors.proxyPort = 'Must be a port between 0 and 65535.';
+        }
+        if (c.externalEmergencySignalUrl && !isHttpsIp(c.externalEmergencySignalUrl)) {
+            errors.externalEmergencySignalUrl = 'Must be https:// with an IP address (no domain).';
+        }
+        if (c.externalEmergencySignalFingerprint && !isSha256(c.externalEmergencySignalFingerprint)) {
+            errors.externalEmergencySignalFingerprint = 'Must be a 64-character hex SHA-256 fingerprint.';
+        }
+        if (c.externalEmergencySignalInterval) {
+            const n = Number(c.externalEmergencySignalInterval);
+            if (!Number.isInteger(n) || n < 30) errors.externalEmergencySignalInterval = 'Minimum 30 seconds.';
+        }
+        if (c.overrideApiEndpoint && !isIpAddr(c.overrideApiEndpoint)) errors.overrideApiEndpoint = 'Must be a valid IPv4 or IPv6 address.';
+        if (c.overrideDohEndpoint && !isIpAddr(c.overrideDohEndpoint)) errors.overrideDohEndpoint = 'Must be a valid IPv4 or IPv6 address.';
+        if (c.overrideWarpEndpoint && !isIpPort(c.overrideWarpEndpoint)) errors.overrideWarpEndpoint = 'Must be a valid IP:port (e.g., 203.0.113.0:500).';
+        return errors;
+    }
+
+    // ============================================================
+    // Field rendering
+    // ============================================================
+    function createField(field) {
+        const { id, label, tag, type = 'text', placeholder = '', help, options } = field;
+        const labelTag = tag ? `<span class="label-tag ${tag}">${tag === 'new' ? 'NEW' : tag}</span>` : '';
+
+        if (type === 'checkbox') {
+            return `
+                <div class="toggle-row">
+                    <input type="checkbox" id="${id}" />
+                    <div class="toggle-content">
+                        <label for="${id}" class="field-label">${label} ${labelTag}</label>
+                        ${help ? `<p class="field-help">${help}</p>` : ''}
+                    </div>
+                </div>`;
+        }
+
+        let input;
+        if (type === 'select') {
+            const opts = options.map(o => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+            input = `<select id="${id}" class="form-select" data-field="${id}">${opts}</select>`;
+        } else {
+            const inputType = type === 'password' ? 'password' : (type === 'number' ? 'number' : 'text');
+            input = `<input type="${inputType}" id="${id}" data-field="${id}" placeholder="${escapeHtml(placeholder)}" class="form-input"${type === 'password' ? ' autocomplete="new-password"' : ''} />`;
+        }
+        return `
+            <div class="field" data-field-wrap="${id}">
+                <label for="${id}" class="field-label">${label} ${labelTag}</label>
+                ${input}
+                ${help ? `<p class="field-help">${help}</p>` : ''}
+                <p class="field-error" data-error-for="${id}"></p>
+            </div>`;
+    }
+
+    function renderSection(section, fieldsOverride) {
+        const fields = filterByOs(fieldsOverride || section.fields);
+        if (fields.length === 0) return '';
+        const collapsed = state.sectionsCollapsed[section.id] !== undefined
+            ? state.sectionsCollapsed[section.id]
+            : !section.defaultOpen;
+
+        // Split into regular fields (rendered as 2-col grid when there are 2+) and checkboxes (full-width stack)
+        const regular = fields.filter(f => f.type !== 'checkbox');
+        const checkboxes = fields.filter(f => f.type === 'checkbox');
+
+        const parts = [];
+        if (regular.length > 0) {
+            const inner = regular.map(createField).join('');
+            parts.push(regular.length > 1
+                ? `<div class="field-grid cols-2">${inner}</div>`
+                : `<div class="stack">${inner}</div>`);
+        }
+        if (checkboxes.length > 0) {
+            const inner = checkboxes.map(createField).join('');
+            parts.push(`<div class="stack-sm" style="margin-top:${regular.length ? '12px' : '0'};">${inner}</div>`);
+        }
+
+        return `
+            <div class="section">
+                <button type="button" class="section-header" data-section-toggle="${section.id}" aria-expanded="${!collapsed}">
+                    <span class="section-title">${section.title}</span>
+                    <span class="section-toggle" aria-hidden="true">▾</span>
+                </button>
+                <div class="section-body${collapsed ? ' collapsed' : ''}">${parts.join('')}</div>
+            </div>`;
+    }
+
+    function deploymentNoteHtml() {
+        const notes = {
+            windows: { path: 'C:\\ProgramData\\Cloudflare\\mdm.xml', text: 'Place this file (or set during MSI install) on each managed device.' },
+            macos:   { path: '/Library/Application Support/Cloudflare/mdm.xml', text: 'Or wrap as a .plist / .mobileconfig and deploy via Jamf, Intune, Kandji, JumpCloud, etc.' },
+            linux:   { path: '/var/lib/cloudflare-warp/mdm.xml', text: 'Auto-detected by the Cloudflare One Client on Linux at startup.' }
+        };
+        const n = notes[state.os];
+        return `<strong>Deployment path:</strong> <code>${n.path}</code> &middot; ${n.text}`;
+    }
+
+    // ============================================================
+    // Form rendering
+    // ============================================================
+    const formContainer = $('#form-container');
+    const deploymentNoteEl = $('#deployment-note');
+    const xmlOutputEl = $('#xml-output');
+    const downloadBtn = $('#download-button');
+    const copyBtn = $('#copy-button');
+    const toastEl = $('#toast');
+
+    function buildOrgSectionsHtml() {
+        return ORG_SECTIONS.map(section => renderSection(section)).join('');
     }
 
     function render() {
-        formContainer.innerHTML = ''; // Clear previous form
-        const isWindows = appState.os === 'windows';
-        
-        let topLevelHtml = filterFieldsByOs(topLevelFields).map(createFieldHtml).join('');
-        let preLoginHtml = preLoginFields.map(createFieldHtml).join('');
-        let emergencyHtml = emergencyDisconnectFields.map(createFieldHtml).join('');
-        let chinaFormFields = chinaFields.map(createFieldHtml).join('');
+        deploymentNoteEl.innerHTML = deploymentNoteHtml();
 
-        // Windows-only top-level section
-        const windowsFeaturesSection = isWindows ? `
-            <fieldset id="top-level-fieldset">
-                <legend>Windows Features (Top-Level)</legend>
-                ${topLevelHtml}
-                <div id="pre-login-fields" style="display: none;">
-                    ${preLoginHtml}
-                </div>
-            </fieldset>` : '';
+        const fragments = [];
 
-        if (appState.mode === 'single') {
-            let singleFormFields = filterFieldsByOs(allFields).filter(f => !f.multiOnly).map(createFieldHtml).join('');
-            formContainer.innerHTML = `
-                ${windowsFeaturesSection}
-                <fieldset id="single-org-fieldset" class="${isWindows ? 'form-divider' : ''}">
-                    <legend>Organization Settings</legend>
-                    ${singleFormFields}
-                    <fieldset class="form-divider">
-                        <legend>External Emergency Disconnect (Optional)</legend>
-                        ${emergencyHtml}
-                    </fieldset>
-                    <fieldset class="form-divider">
-                        <legend>Endpoint Overrides (Optional)</legend>
-                        ${chinaFormFields}
-                    </fieldset>
-                </fieldset>`;
-            updateSingleFormValues();
-            if (isWindows) updateTopLevelFormValues();
+        // Top-level Windows-only features
+        if (isWindows()) {
+            const topLevelHtml = TOP_LEVEL_FIELDS.map(createField).join('');
+            const preLoginHtml = PRELOGIN_FIELDS.map(createField).join('');
+            const preLoginVisible = state.topLevel.preLoginEnabled;
+            fragments.push(`
+                <div class="section">
+                    <button type="button" class="section-header" data-section-toggle="windows" aria-expanded="true">
+                        <span class="section-title">Windows top-level features</span>
+                        <span class="section-toggle" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="section-body">
+                        <div class="stack">${topLevelHtml}</div>
+                        <div id="pre-login-fields" class="stack" style="margin-top:16px; ${preLoginVisible ? '' : 'display:none;'}">
+                            <div class="callout callout-info">
+                                <span class="callout-icon">i</span>
+                                <div>Pre-login requires a service token configured for device enrollment.
+                                    <a href="https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/windows-prelogin/" target="_blank" rel="noopener">Learn more</a>.
+                                </div>
+                            </div>
+                            ${preLoginHtml}
+                        </div>
+                    </div>
+                </div>`);
+        }
+
+        if (state.mode === 'single') {
+            fragments.push(buildOrgSectionsHtml());
         } else {
-            let multiFormFields = filterFieldsByOs(allFields).map(createFieldHtml).join('');
-            formContainer.innerHTML = `
-                ${windowsFeaturesSection}
-                <form id="multi-org-form" class="${isWindows ? 'form-divider' : ''}">
-                    <fieldset>
-                        <legend>Add Organization Configuration</legend>
-                        ${multiFormFields}
-                        <fieldset class="form-divider">
-                            <legend>External Emergency Disconnect (Optional)</legend>
-                            ${emergencyHtml}
-                        </fieldset>
-                        <fieldset class="form-divider">
-                            <legend>Endpoint Overrides (Optional)</legend>
-                            ${chinaFormFields}
-                        </fieldset>
-                        <button type="submit" class="button button-secondary" style="margin-top: 1.5rem;">Add Organization Configuration</button>
-                    </fieldset>
-                </form>
-                <div id="multi-org-list-container"></div>`;
-            updateMultiOrgList();
-            updateNewMultiFormValues();
-            if (isWindows) updateTopLevelFormValues();
+            fragments.push(`
+                <div class="section">
+                    <button type="button" class="section-header" aria-expanded="true" data-section-toggle="add-org">
+                        <span class="section-title">Add organization configuration</span>
+                        <span class="section-toggle" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="section-body">
+                        <form id="multi-org-form" class="stack" novalidate>
+                            ${ORG_SECTIONS.map(section => renderSection(section)).join('')}
+                            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 4px;">
+                                <button type="button" id="reset-new-org" class="btn btn-ghost">Clear</button>
+                                <button type="submit" class="btn btn-primary">Add organization</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div style="margin-top: 16px;">
+                    <h4 style="font-size: 0.8125rem; font-weight: 600; color: var(--gray-700); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">Configured organizations</h4>
+                    <div id="orgs-list-container"></div>
+                </div>`);
         }
-        addEventListeners();
-        if (isWindows) togglePreLoginFields();
-        updateDownloadButton();
-        generateXml();
+
+        formContainer.innerHTML = fragments.join('');
+
+        // Populate values + wire events
+        if (state.mode === 'single') {
+            populateForm(state.singleOrg);
+        } else {
+            populateForm(state.newOrg);
+            renderOrgsList();
+        }
+        if (isWindows()) populateTopLevel();
+
+        toggleConditionalFields();
+        attachListeners();
+        validateAndUpdate();
     }
 
-    function togglePreLoginFields() {
-        const preLoginFieldsDiv = document.getElementById('pre-login-fields');
-        if (preLoginFieldsDiv) {
-            preLoginFieldsDiv.style.display = appState.topLevel.preLoginEnabled ? 'block' : 'none';
-        }
+    function populateForm(config) {
+        Object.keys(config).forEach(key => {
+            const el = document.getElementById(key);
+            if (!el) return;
+            if (el.type === 'checkbox') {
+                el.checked = !!config[key];
+            } else if (el.type === 'number') {
+                // Display blank instead of "0" so placeholders can show through
+                el.value = config[key] === 0 ? '' : config[key];
+            } else {
+                el.value = config[key] ?? '';
+            }
+        });
     }
 
-    function addEventListeners() {
-        // Top-level fields event listeners
-        document.querySelectorAll('#top-level-fieldset input, #top-level-fieldset select').forEach(el => {
-            const eventType = el.type === 'checkbox' ? 'change' : 'input';
-            el.addEventListener(eventType, (e) => {
-                const { id, value, type, checked } = e.target;
-                appState.topLevel[id] = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
-                if (id === 'preLoginEnabled') {
-                    togglePreLoginFields();
-                }
-                generateXml();
+    function populateTopLevel() {
+        Object.keys(state.topLevel).forEach(key => {
+            const el = document.getElementById(key);
+            if (!el) return;
+            if (el.type === 'checkbox') el.checked = !!state.topLevel[key];
+            else el.value = state.topLevel[key] ?? '';
+        });
+    }
+
+    function toggleConditionalFields() {
+        // proxy_port shown only when service_mode = proxy
+        const config = state.mode === 'single' ? state.singleOrg : state.newOrg;
+        const proxyWrap = $('[data-field-wrap="proxyPort"]');
+        if (proxyWrap) proxyWrap.style.display = config.serviceMode === 'proxy' ? '' : 'none';
+
+        const preLoginWrap = $('#pre-login-fields');
+        if (preLoginWrap) preLoginWrap.style.display = state.topLevel.preLoginEnabled ? '' : 'none';
+    }
+
+    function attachListeners() {
+        // Section collapse toggles
+        $$('[data-section-toggle]').forEach(header => {
+            const id = header.dataset.sectionToggle;
+            header.addEventListener('click', () => {
+                const body = header.nextElementSibling;
+                const collapsed = body.classList.toggle('collapsed');
+                header.setAttribute('aria-expanded', String(!collapsed));
+                state.sectionsCollapsed[id] = collapsed;
             });
         });
 
-        if (appState.mode === 'single') {
-            document.querySelectorAll('#single-org-fieldset input, #single-org-fieldset select').forEach(el => {
-                const eventType = el.type === 'checkbox' ? 'change' : 'input';
-                el.addEventListener(eventType, (e) => {
-                    const { id, value, type, checked } = e.target;
-                    appState.singleOrgConfig[id] = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
-                    generateXml();
+        // Top-level (Windows-only) listeners
+        TOP_LEVEL_FIELDS.concat(PRELOGIN_FIELDS).forEach(f => {
+            const el = document.getElementById(f.id);
+            if (!el) return;
+            const evt = el.type === 'checkbox' ? 'change' : 'input';
+            el.addEventListener(evt, (e) => {
+                const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+                state.topLevel[f.id] = v;
+                if (f.id === 'preLoginEnabled') toggleConditionalFields();
+                validateAndUpdate();
+            });
+        });
+
+        // Org config listeners
+        const formRoot = state.mode === 'single' ? formContainer : $('#multi-org-form');
+        if (formRoot) {
+            $$('input, select', formRoot).forEach(el => {
+                if (TOP_LEVEL_FIELDS.concat(PRELOGIN_FIELDS).some(f => f.id === el.id)) return;
+                const evt = el.type === 'checkbox' ? 'change' : 'input';
+                el.addEventListener(evt, (e) => {
+                    const target = state.mode === 'single' ? state.singleOrg : state.newOrg;
+                    const val = e.target.type === 'checkbox' ? e.target.checked
+                              : (e.target.type === 'number' ? (e.target.value === '' ? 0 : Number(e.target.value)) : e.target.value);
+                    target[el.id] = val;
+                    if (el.id === 'serviceMode') toggleConditionalFields();
+                    validateAndUpdate();
                 });
             });
-        } else {
-            document.getElementById('multi-org-form').addEventListener('submit', handleAddMultiOrg);
-            document.querySelectorAll('#multi-org-form input, #multi-org-form select').forEach(el => {
-                 const eventType = el.type === 'checkbox' ? 'change' : 'input';
-                el.addEventListener(eventType, (e) => {
-                    const { id, value, type, checked } = e.target;
-                    appState.newMultiOrgConfig[id] = type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value);
-                });
+        }
+
+        if (state.mode === 'multi') {
+            $('#multi-org-form').addEventListener('submit', handleAddOrg);
+            $('#reset-new-org').addEventListener('click', () => {
+                state.newOrg = structuredClone(initialOrgConfig);
+                populateForm(state.newOrg);
+                clearErrors();
+                validateAndUpdate();
             });
         }
     }
 
-    function updateSingleFormValues() {
-        for (const key in appState.singleOrgConfig) {
-            const el = document.getElementById(key);
-            if (el) {
-                if (el.type === 'checkbox') el.checked = appState.singleOrgConfig[key];
-                else el.value = appState.singleOrgConfig[key];
-            }
-        }
+    function clearErrors() {
+        $$('.field.has-error').forEach(f => f.classList.remove('has-error'));
+        $$('[data-error-for]').forEach(e => e.textContent = '');
     }
 
-    function updateTopLevelFormValues() {
-        for (const key in appState.topLevel) {
-            const el = document.getElementById(key);
-            if (el) {
-                if (el.type === 'checkbox') el.checked = appState.topLevel[key];
-                else el.value = appState.topLevel[key];
-            }
-        }
-    }
-    
-    function updateNewMultiFormValues() {
-        for (const key in appState.newMultiOrgConfig) {
-            const el = document.getElementById(key);
-            if (el) {
-                if (el.type === 'checkbox') el.checked = appState.newMultiOrgConfig[key];
-                else el.value = appState.newMultiOrgConfig[key];
-            }
-        }
+    function showErrors(errors) {
+        clearErrors();
+        Object.entries(errors).forEach(([fieldId, msg]) => {
+            const wrap = $(`[data-field-wrap="${fieldId}"]`);
+            const errEl = $(`[data-error-for="${fieldId}"]`);
+            if (wrap) wrap.classList.add('has-error');
+            if (errEl) errEl.textContent = msg;
+        });
     }
 
-    function updateMultiOrgList() {
-        const container = document.getElementById('multi-org-list-container');
+    // ============================================================
+    // Multi-org
+    // ============================================================
+    function handleAddOrg(e) {
+        e.preventDefault();
+        const errors = validateConfig(state.newOrg);
+        if (!state.newOrg.organization) errors.organization = 'Team name is required.';
+        if (!state.newOrg.displayName)  errors.displayName  = 'Display name is required when adding multiple organizations.';
+        showErrors(errors);
+        if (Object.keys(errors).length) {
+            showToast('Please fix the errors before adding the organization.');
+            return;
+        }
+        state.orgs.push(structuredClone(state.newOrg));
+        state.newOrg = structuredClone(initialOrgConfig);
+        populateForm(state.newOrg);
+        renderOrgsList();
+        validateAndUpdate();
+        showToast('Organization added.');
+    }
+
+    function renderOrgsList() {
+        const container = $('#orgs-list-container');
         if (!container) return;
-        if (appState.multiOrgConfigs.length === 0) {
-            container.innerHTML = '';
+        if (state.orgs.length === 0) {
+            container.innerHTML = `<div class="orgs-list-empty">No organizations added yet. Configure one above and click <strong>Add organization</strong>.</div>`;
             return;
         }
         container.innerHTML = `
-            <h3 class="multi-org-list-header">Current Configurations:</h3>
-            <ul class="multi-org-list">
-                ${appState.multiOrgConfigs.map((config, index) => `
-                    <li class="multi-org-list-item">
-                        <div class="list-item-content">
-                            <div class="list-item-details">
-                                <p><span class="font-bold">${config.displayName}</span> <span class="font-normal">(${config.organization})</span></p>
-                                <p>Mode: ${config.serviceMode}, Gateway: ${config.gatewayId || 'Default'}</p>
+            <ul class="orgs-list">
+                ${state.orgs.map((c, i) => `
+                    <li class="org-item">
+                        <div class="org-item-info">
+                            <div class="org-item-name">
+                                ${escapeHtml(c.displayName || c.organization)}
+                                ${c.environment === 'fedramp_high' ? '<span class="badge fedramp">FedRAMP</span>' : ''}
                             </div>
-                            <button data-index="${index}" class="button-remove">Remove</button>
+                            <div class="org-item-meta">${escapeHtml(c.organization)} · ${escapeHtml(c.serviceMode)}${c.gatewayId ? ' · ' + escapeHtml(c.gatewayId) : ''}</div>
                         </div>
-                    </li>
-                `).join('')}
+                        <button type="button" class="btn btn-danger-ghost" data-remove-index="${i}">Remove</button>
+                    </li>`).join('')}
             </ul>`;
-        document.querySelectorAll('.button-remove').forEach(btn => btn.addEventListener('click', handleRemoveMultiOrg));
+        $$('[data-remove-index]', container).forEach(btn => btn.addEventListener('click', (e) => {
+            const i = Number(e.currentTarget.dataset.removeIndex);
+            state.orgs.splice(i, 1);
+            renderOrgsList();
+            validateAndUpdate();
+        }));
     }
 
-    function handleAddMultiOrg(e) {
-        e.preventDefault();
-        const { organization, displayName } = appState.newMultiOrgConfig;
-        if (organization && displayName) {
-            appState.multiOrgConfigs.push({ ...appState.newMultiOrgConfig });
-            appState.newMultiOrgConfig = { ...initialConfigState };
-            updateMultiOrgList();
-            updateNewMultiFormValues();
-            generateXml();
+    // ============================================================
+    // XML generation
+    // ============================================================
+    const ind = (n) => '  '.repeat(n);
+
+    function buildOrgItems(c) {
+        const win = isWindows();
+        return [
+            { key: 'organization',                          value: c.organization,                                              type: 'string'  },
+            { key: 'display_name',                          value: c.displayName,                                               type: 'string'  },
+            { key: 'environment',                           value: c.environment === 'fedramp_high' ? c.environment : null,     type: 'string'  },
+            { key: 'gateway_unique_id',                     value: c.gatewayId,                                                 type: 'string'  },
+            { key: 'auth_client_id',                        value: c.authClientId,                                              type: 'string'  },
+            { key: 'auth_client_secret',                    value: c.authClientSecret,                                          type: 'string'  },
+            { key: 'service_mode',                          value: c.serviceMode,                                               type: 'string'  },
+            { key: 'proxy_port',                            value: c.serviceMode === 'proxy' && c.proxyPort ? c.proxyPort : null, type: 'integer' },
+            { key: 'support_url',                           value: c.supportUrl,                                                type: 'string'  },
+            { key: 'switch_locked',                         value: c.switchLocked,                                              type: 'boolean', keepFalse: true },
+            { key: 'auto_connect',                          value: c.autoConnect,                                               type: 'integer', forceWriteWhenZero: true },
+            { key: 'onboarding',                            value: c.onboarding,                                                type: 'boolean', keepFalse: true },
+            { key: 'enable_post_quantum',                   value: c.enablePostQuantum,                                         type: 'boolean', keepFalse: true },
+            { key: 'warp_tunnel_protocol',                  value: c.warpTunnelProtocol !== 'masque' ? c.warpTunnelProtocol : null, type: 'string' },
+            { key: 'enable_pmtud',                          value: c.enablePmtud,                                               type: 'boolean', keepFalse: true },
+            { key: 'enable_netbt',                          value: win ? c.enableNetbt : null,                                  type: 'boolean', keepFalse: true, windowsOnly: true },
+            { key: 'external_emergency_signal_url',         value: c.externalEmergencySignalUrl,                                type: 'string'  },
+            { key: 'external_emergency_signal_fingerprint', value: c.externalEmergencySignalFingerprint,                        type: 'string'  },
+            { key: 'external_emergency_signal_interval',    value: c.externalEmergencySignalInterval > 0 ? c.externalEmergencySignalInterval : null, type: 'integer' },
+            { key: 'override_api_endpoint',                 value: c.overrideApiEndpoint,                                       type: 'string'  },
+            { key: 'override_doh_endpoint',                 value: c.overrideDohEndpoint,                                       type: 'string'  },
+            { key: 'override_warp_endpoint',                value: c.overrideWarpEndpoint,                                      type: 'string'  }
+        ].filter(item => {
+            if (item.windowsOnly && !win) return false;
+            if (item.value === null || item.value === undefined) return false;
+            if (typeof item.value === 'string' && item.value.trim() === '') return false;
+            if (item.forceWriteWhenZero) return true;
+            if (item.type === 'boolean' && item.value === false && !item.keepFalse) return false;
+            return true;
+        });
+    }
+
+    function valueXml(item, indent) {
+        switch (item.type) {
+            case 'string':  return `${indent}<string>${escapeXml(item.value)}</string>`;
+            case 'integer': return `${indent}<integer>${item.value}</integer>`;
+            case 'boolean': return `${indent}${item.value ? '<true/>' : '<false/>'}`;
+            default: return '';
         }
     }
 
-    function handleRemoveMultiOrg(e) {
-        const index = parseInt(e.target.dataset.index, 10);
-        appState.multiOrgConfigs.splice(index, 1);
-        updateMultiOrgList();
-        generateXml();
+    function dictXml(items, depth) {
+        const lines = items.map(it => {
+            return `${ind(depth)}<key>${it.key}</key>\n${valueXml(it, ind(depth))}`;
+        });
+        return lines.join('\n');
     }
 
-    function generateXml() {
-        let xmlString = '';
-        const escapeXml = (unsafe) => unsafe.replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&apos;','"':'&quot;'}[c]));
+    function preLoginDictXml(depth) {
+        const tl = state.topLevel;
+        if (!tl.preLoginEnabled) return null;
+        if (!tl.preLoginOrganization || !tl.preLoginAuthClientId || !tl.preLoginAuthClientSecret) return null;
+        const lines = [
+            `${ind(depth + 1)}<key>organization</key>`,
+            `${ind(depth + 1)}<string>${escapeXml(tl.preLoginOrganization)}</string>`,
+            `${ind(depth + 1)}<key>auth_client_id</key>`,
+            `${ind(depth + 1)}<string>${escapeXml(tl.preLoginAuthClientId)}</string>`,
+            `${ind(depth + 1)}<key>auth_client_secret</key>`,
+            `${ind(depth + 1)}<string>${escapeXml(tl.preLoginAuthClientSecret)}</string>`
+        ];
+        return [`${ind(depth)}<key>pre_login</key>`, `${ind(depth)}<dict>`, ...lines, `${ind(depth)}</dict>`].join('\n');
+    }
 
-        const formatSimpleArray = (input) => {
-            if (!input || !input.trim()) return null;
-            const items = input.split(',').map(item => `        <string>${escapeXml(item.trim())}</string>`).join('\n');
-            return `    <array>\n${items}\n    </array>`;
-        };
-        
-        const generateDictItems = (config) => {
-            const isWindows = appState.os === 'windows';
-            const items = [
-                { key: 'organization', value: config.organization, type: 'string' },
-                { key: 'display_name', value: config.displayName, type: 'string' },
-                { key: 'gateway_unique_id', value: config.gatewayId, type: 'string' },
-                { key: 'auth_client_id', value: config.authClientId, type: 'string' },
-                { key: 'auth_client_secret', value: config.authClientSecret, type: 'string' },
-                { key: 'service_mode', value: config.serviceMode, type: 'string' },
-                { key: 'proxy_port', value: config.serviceMode === 'proxy' && config.proxyPort ? config.proxyPort : null, type: 'integer' },
-                { key: 'support_url', value: config.supportUrl, type: 'string' },
-                { key: 'switch_locked', value: config.switchLocked, type: 'boolean' },
-                { key: 'auto_connect', value: config.autoConnect, type: 'integer' },
-                { key: 'onboarding', value: config.onboarding, type: 'boolean' },
-                { key: 'enable_post_quantum', value: config.enablePostQuantum, type: 'boolean' },
-                { key: 'warp_tunnel_protocol', value: config.warpTunnelProtocol !== 'masque' ? config.warpTunnelProtocol : null, type: 'string' },
-                { key: 'enable_pmtud', value: config.enablePmtud, type: 'boolean' },
-                { key: 'enable_netbt', value: isWindows ? config.enableNetbt : null, type: 'boolean', windowsOnly: true },
-                { key: 'external_emergency_signal_url', value: config.externalEmergencySignalUrl, type: 'string' },
-                { key: 'external_emergency_signal_fingerprint', value: config.externalEmergencySignalFingerprint, type: 'string' },
-                { key: 'external_emergency_signal_interval', value: config.externalEmergencySignalInterval > 0 ? config.externalEmergencySignalInterval : null, type: 'integer' },
-                { key: 'override_api_endpoint', value: config.overrideApiEndpoint, type: 'string' },
-                { key: 'override_doh_endpoint', value: config.overrideDohEndpoint, type: 'string' },
-                { key: 'override_warp_endpoint', value: config.overrideWarpEndpoint, type: 'string' },
-            ];
-            return items.filter(item => {
-                if (item.windowsOnly && !isWindows) return false;
-                if (item.value === null || item.value === undefined) return false;
-                if (typeof item.value === 'string' && item.value.trim() === '') return false;
-                if (item.key === 'auto_connect') return true;
-                if (item.type === 'boolean' && item.value === false) {
-                    const keysToKeepWhenFalse = ['switch_locked', 'onboarding', 'enable_post_quantum', 'enable_pmtud', 'enable_netbt'];
-                    return keysToKeepWhenFalse.includes(item.key);
-                }
-                return true;
+    function needsConfigsArray() {
+        const winFeatures = isWindows() && (state.topLevel.multiUser || state.topLevel.preLoginEnabled);
+        return state.mode === 'multi' || winFeatures;
+    }
+
+    function generateXmlString() {
+        if (state.mode === 'single' && !state.singleOrg.organization) {
+            return { xml: '<!-- Enter a team name to generate the XML file. -->', empty: true };
+        }
+        if (state.mode === 'multi' && state.orgs.length === 0) {
+            return { xml: '<!-- Add at least one organization configuration to generate the XML file. -->', empty: true };
+        }
+
+        const lines = ['<?xml version="1.0" encoding="UTF-8"?>'];
+        lines.push('<dict>');
+
+        if (needsConfigsArray()) {
+            // Top-level features first
+            if (isWindows() && state.topLevel.multiUser) {
+                lines.push(`${ind(1)}<key>multi_user</key>`);
+                lines.push(`${ind(1)}<true/>`);
+            }
+            if (isWindows() && state.topLevel.preLoginEnabled) {
+                const pl = preLoginDictXml(1);
+                if (pl) lines.push(pl);
+            }
+
+            lines.push(`${ind(1)}<key>configs</key>`);
+            lines.push(`${ind(1)}<array>`);
+
+            const configs = state.mode === 'multi' ? state.orgs : [state.singleOrg];
+            configs.forEach(c => {
+                lines.push(`${ind(2)}<dict>`);
+                const items = buildOrgItems(c);
+                lines.push(dictXml(items, 3));
+                lines.push(`${ind(2)}</dict>`);
             });
-        };
 
-        const needsConfigsWrapper = () => {
-            const isWindows = appState.os === 'windows';
-            // Windows-only top-level features require configs wrapper
-            const hasWindowsFeatures = isWindows && (appState.topLevel.multiUser || appState.topLevel.preLoginEnabled);
-            return hasWindowsFeatures || appState.mode === 'multi';
-        };
-
-        const formatValueTag = (item, indent) => {
-            switch (item.type) {
-                case 'string': return `${indent}<string>${escapeXml(item.value)}</string>`;
-                case 'integer': return `${indent}<integer>${item.value}</integer>`;
-                case 'boolean': return `${indent}${item.value ? '<true/>' : '<false/>'}`;
-                default: return '';
-            }
-        };
-
-        const generatePreLoginDict = (indent) => {
-            const tl = appState.topLevel;
-            if (!tl.preLoginEnabled || !tl.preLoginOrganization) return '';
-            let items = [];
-            items.push(`${indent}  <key>organization</key>\n${indent}  <string>${escapeXml(tl.preLoginOrganization)}</string>`);
-            if (tl.preLoginAuthClientId) {
-                items.push(`${indent}  <key>auth_client_id</key>\n${indent}  <string>${escapeXml(tl.preLoginAuthClientId)}</string>`);
-            }
-            if (tl.preLoginAuthClientSecret) {
-                items.push(`${indent}  <key>auth_client_secret</key>\n${indent}  <string>${escapeXml(tl.preLoginAuthClientSecret)}</string>`);
-            }
-            return `${indent}<key>pre_login</key>\n${indent}<dict>\n${items.join('\n')}\n${indent}</dict>`;
-        };
-
-        if (appState.mode === 'single') {
-            if (!appState.singleOrgConfig.organization) {
-                xmlString = '<!-- Enter an Organization Name to generate the XML file. -->';
-            } else if (needsConfigsWrapper()) {
-                // Single org but with multi_user or pre_login - needs configs array wrapper
-                let topLevelItems = [];
-                if (appState.topLevel.multiUser) {
-                    topLevelItems.push('  <key>multi_user</key>\n  <true/>');
-                }
-                if (appState.topLevel.preLoginEnabled && appState.topLevel.preLoginOrganization) {
-                    topLevelItems.push(generatePreLoginDict('  '));
-                }
-                
-                const dictItems = generateDictItems(appState.singleOrgConfig).map(item => {
-                    return `      <key>${item.key}</key>\n${formatValueTag(item, '      ')}`;
-                }).join('\n');
-                
-                topLevelItems.push(`  <key>configs</key>\n  <array>\n    <dict>\n${dictItems}\n    </dict>\n  </array>`);
-                
-                xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n${topLevelItems.join('\n')}\n</dict>`;
-            } else {
-                // Simple single org without top-level features
-                const dictItems = generateDictItems(appState.singleOrgConfig).map(item => {
-                    return `  <key>${item.key}</key>\n${formatValueTag(item, '  ')}`;
-                }).join('\n');
-                xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n${dictItems}\n</dict>`;
-            }
+            lines.push(`${ind(1)}</array>`);
         } else {
-            if (appState.multiOrgConfigs.length === 0) {
-                 xmlString = '<!-- Add an organization configuration to generate the XML file. -->';
-            } else {
-                let topLevelItems = [];
-                if (appState.topLevel.multiUser) {
-                    topLevelItems.push('  <key>multi_user</key>\n  <true/>');
-                }
-                if (appState.topLevel.preLoginEnabled && appState.topLevel.preLoginOrganization) {
-                    topLevelItems.push(generatePreLoginDict('  '));
-                }
-                
-                const configDicts = appState.multiOrgConfigs.map(config => {
-                    const items = generateDictItems(config).map(item => {
-                        return `      <key>${item.key}</key>\n${formatValueTag(item, '      ')}`;
-                    }).join('\n');
-                    return `    <dict>\n${items}\n    </dict>`;
-                }).join('\n');
-                
-                topLevelItems.push(`  <key>configs</key>\n  <array>\n${configDicts}\n  </array>`);
-                
-                xmlString = `<?xml version="1.0" encoding="UTF-8"?>\n<dict>\n${topLevelItems.join('\n')}\n</dict>`;
-            }
+            const items = buildOrgItems(state.singleOrg);
+            lines.push(dictXml(items, 1));
         }
 
-        xmlOutputEl.textContent = xmlString;
-        downloadButton.disabled = xmlString.startsWith('<!--');
+        lines.push('</dict>');
+        return { xml: lines.join('\n'), empty: false };
     }
 
-    function updateDownloadButton() {
-        const filename = appState.os === 'macos' ? 'mdm.xml' : 'mdm.xml';
-        downloadButton.textContent = `Download ${filename.toUpperCase()}`;
+    // Lightweight syntax highlighting for XML preview
+    function highlightXml(xml) {
+        return escapeHtml(xml)
+            .replace(/(&lt;\?xml[^?]*\?&gt;)/g, '<span class="decl">$1</span>')
+            .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="comment">$1</span>')
+            .replace(/(&lt;\/?)([a-zA-Z0-9_]+)(\/?&gt;)/g, '$1<span class="tag">$2</span>$3')
+            .replace(/(&lt;key&gt;)([^&]+)(&lt;\/key&gt;)/g, '$1<span class="key">$2</span>$3')
+            .replace(/(&lt;string&gt;)([^&]*)(&lt;\/string&gt;)/g, '$1<span class="str">$2</span>$3')
+            .replace(/(&lt;integer&gt;)([^&]+)(&lt;\/integer&gt;)/g, '$1<span class="num">$2</span>$3')
+            .replace(/(&lt;true\/&gt;|&lt;false\/&gt;)/g, '<span class="bool">$1</span>');
     }
 
-    // --- INITIALIZATION ---
-    osSelect.addEventListener('change', (e) => {
-        appState.os = e.target.value;
-        // Reset Windows-only top-level settings when switching to macOS
-        if (appState.os === 'macos') {
-            appState.topLevel.multiUser = false;
-            appState.topLevel.preLoginEnabled = false;
+    function validateAndUpdate() {
+        // Validate currently-edited form
+        const target = state.mode === 'single' ? state.singleOrg : state.newOrg;
+        const errors = validateConfig(target);
+        showErrors(errors);
+
+        // Validate switch_locked + auto_connect rule
+        if (target.switchLocked && (target.autoConnect === '' || target.autoConnect === undefined || target.autoConnect === null)) {
+            // We treat 0 as a valid explicit value. No error here, because 0 is the default in state.
+        }
+
+        const { xml, empty } = generateXmlString();
+        xmlOutputEl.innerHTML = empty ? `<span class="comment">${escapeHtml(xml)}</span>` : highlightXml(xml);
+        downloadBtn.disabled = empty || Object.keys(errors).length > 0;
+        copyBtn.disabled = empty;
+    }
+
+    // ============================================================
+    // Toast
+    // ============================================================
+    let toastTimeout;
+    function showToast(message) {
+        toastEl.textContent = message;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    }
+
+    // ============================================================
+    // OS / Mode change
+    // ============================================================
+    $$('input[name="os"]').forEach(r => r.addEventListener('change', (e) => {
+        state.os = e.target.value;
+        if (state.os !== 'windows') {
+            state.topLevel.multiUser = false;
+            state.topLevel.preLoginEnabled = false;
+            // Reset Windows-only org settings
+            state.singleOrg.enableNetbt = false;
+            state.newOrg.enableNetbt = false;
+            state.orgs.forEach(c => { c.enableNetbt = false; });
         }
         render();
-    });
+    }));
 
-    modeSelect.addEventListener('change', (e) => {
-        appState.mode = e.target.value;
+    $$('input[name="mode"]').forEach(r => r.addEventListener('change', (e) => {
+        state.mode = e.target.value;
         render();
+    }));
+
+    // ============================================================
+    // Copy / Download
+    // ============================================================
+    copyBtn.addEventListener('click', async () => {
+        const text = xmlOutputEl.textContent;
+        if (!text || text.startsWith('<!--')) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('XML copied to clipboard.');
+        } catch {
+            // Fallback
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); showToast('XML copied to clipboard.'); }
+            catch { showToast('Unable to copy.'); }
+            document.body.removeChild(ta);
+        }
     });
 
-    downloadButton.addEventListener('click', () => {
+    downloadBtn.addEventListener('click', () => {
         const blob = new Blob([xmlOutputEl.textContent], { type: 'application/xml;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'mdm.xml'; // Same filename for both platforms
+        a.download = 'mdm.xml';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        showToast('mdm.xml downloaded.');
     });
 
-    render(); // Initial render
+    // Initial render
+    render();
 });
 </script>
-
 </body>
 </html>

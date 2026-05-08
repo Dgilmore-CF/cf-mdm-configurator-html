@@ -1,109 +1,115 @@
-# Cloudflare WARP MDM Configurator
+# Cloudflare One Client MDM Configurator
 
-A web-based tool for generating `mdm.xml` configuration files for deploying the Cloudflare WARP client via MDM (Mobile Device Management).
+A web-based tool for generating `mdm.xml` configuration files for the [Cloudflare One Client](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/) (formerly WARP) on Windows, macOS, and Linux.
 
 ## Overview
 
-This tool provides a user-friendly interface to create MDM configuration files for Cloudflare WARP deployments on **Windows** and **macOS**. It supports all available MDM parameters as documented in the [official Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/).
+This tool provides a clean, professional interface to build MDM deployment files for Cloudflare One Client. It supports the full set of MDM parameters as documented in the [official Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/parameters/), including the latest `environment` parameter for FedRAMP High deployments.
 
 ## Features
 
-- **Multi-Platform Support** - Generate configurations for Windows and macOS
-- **Single Organization** - Configure WARP for a single Zero Trust organization
-- **Multi-Organization** - Allow users to switch between multiple Zero Trust organizations
-- **Windows Multi-User Support** - Enable per-user WARP registrations on shared Windows devices (Windows only)
-- **Windows Pre-Login** - Connect WARP before Windows login using service tokens (Windows only)
-- **External Emergency Disconnect** - Configure emergency disconnect polling endpoints
+- **Multi-platform** — Generate configurations for Windows, macOS, and Linux
+- **Single or multi-organization** — Support for the `configs` array used to switch between Zero Trust orgs
+- **Windows multi-user** — Per-user WARP registrations on shared Windows devices
+- **Windows pre-login** — Connect with a service token before user login
+- **FedRAMP High** — New `environment` parameter for FedRAMP-authorized deployments
+- **External Emergency Disconnect** — Configure HTTPS polling, fingerprint, and interval
+- **Endpoint overrides** — For Cloudflare China and partner-network deployments
+- **Live XML preview** — Syntax-highlighted preview that updates as you type
+- **Inline validation** — URL, IP, port, and SHA-256 fingerprint format checks
+- **One-click copy / download** — Copy XML to clipboard or download `mdm.xml`
 
-## Platform Support
+## Platform support
 
-| Feature | Windows | macOS |
-|---------|---------|-------|
-| Single/Multi Organization | ✅ | ✅ |
-| Multi-User Mode | ✅ | ❌ |
-| Pre-Login | ✅ | ❌ |
-| NetBIOS over TCP/IP | ✅ | ❌ |
-| All other parameters | ✅ | ✅ |
+| Feature                          | Windows | macOS | Linux |
+| -------------------------------- | :-----: | :---: | :---: |
+| Single / multi-organization      |   Yes   |  Yes  |  Yes  |
+| FedRAMP High (`environment`)     |   Yes   |  Yes  |  Yes  |
+| Multi-user mode                  |   Yes   |   —   |   —   |
+| Pre-login                        |   Yes   |   —   |   —   |
+| NetBIOS over TCP/IP              |   Yes   |   —   |   —   |
+| All other parameters             |   Yes   |  Yes  |  Yes  |
 
-## Supported Parameters
+## Deployment paths
 
-### Top-Level Parameters (Windows Only)
-| Parameter | Description |
-|-----------|-------------|
-| `multi_user` | Enable multiple user registrations per Windows device |
-| `pre_login` | Connect WARP before Windows login with service token |
+| Platform | Default location                                      |
+| -------- | ----------------------------------------------------- |
+| Windows  | `C:\ProgramData\Cloudflare\mdm.xml`                   |
+| macOS    | `/Library/Application Support/Cloudflare/mdm.xml`     |
+| Linux    | `/var/lib/cloudflare-warp/mdm.xml`                    |
 
-### Organization Parameters (All Platforms)
-| Parameter | Description |
-|-----------|-------------|
-| `organization` | Your Zero Trust team name |
-| `display_name` | User-friendly name shown in WARP GUI |
-| `gateway_unique_id` | DoH subdomain for DNS-only policy enforcement |
-| `auth_client_id` | Service token Client ID |
-| `auth_client_secret` | Service token Client Secret |
-| `service_mode` | Operational mode (warp, 1dot1, proxy, tunnelonly, postureonly) |
-| `proxy_port` | SOCKS proxy port for proxy mode |
-| `support_url` | URL for user support (https:// or mailto:) |
-| `switch_locked` | Prevent users from disabling WARP |
-| `auto_connect` | Auto-reconnect interval in minutes |
-| `onboarding` | Show/hide privacy policy onboarding screens |
-| `enable_post_quantum` | Enable post-quantum cryptography |
-| `warp_tunnel_protocol` | Tunnel protocol (masque or wireguard) |
-| `enable_pmtud` | Enable Path MTU Discovery |
+On macOS, the file can also be wrapped as a `.plist` or `.mobileconfig` for deployment via Jamf, Intune, Kandji, JumpCloud, or other MDM tools.
 
-### Windows-Only Parameters
-| Parameter | Description |
-|-----------|-------------|
-| `enable_netbt` | Enable NetBIOS over TCP/IP on WARP tunnel interface |
+## Supported parameters
 
-### External Emergency Disconnect
-| Parameter | Description |
-|-----------|-------------|
-| `external_emergency_signal_url` | HTTPS endpoint for disconnect signal |
-| `external_emergency_signal_fingerprint` | SHA-256 fingerprint for endpoint validation |
-| `external_emergency_signal_interval` | Polling frequency in seconds (min 30) |
+### Top-level (Windows only)
 
-### Endpoint Overrides
-| Parameter | Description |
-|-----------|-------------|
-| `override_api_endpoint` | Override API endpoint IP address |
-| `override_doh_endpoint` | Override DoH endpoint IP address |
-| `override_warp_endpoint` | Override WARP endpoint IP:port |
+| Parameter   | Description                                                  |
+| ----------- | ------------------------------------------------------------ |
+| `multi_user`  | Enable multiple user registrations per Windows device       |
+| `pre_login`   | Connect WARP before Windows login using a service token     |
 
-## Service Modes
+### Organization
 
-| Mode | Description |
-|------|-------------|
-| `warp` | Gateway with WARP (default) |
-| `1dot1` | Gateway with DoH (DNS only) |
-| `proxy` | SOCKS proxy mode |
-| `tunnelonly` | Secure Web Gateway without DNS filtering |
-| `postureonly` | Device Information Only |
+| Parameter                              | Description                                                                            |
+| -------------------------------------- | -------------------------------------------------------------------------------------- |
+| `organization`                         | Your Zero Trust team name                                                              |
+| `display_name`                         | User-friendly name shown in the client GUI (required when using `configs`)             |
+| `environment`                          | **NEW** — `normal` or `fedramp_high` (client v2025.9.558.0+)                           |
+| `gateway_unique_id`                    | DoH subdomain for DNS-only policy enforcement                                          |
+| `auth_client_id`                       | Service token Client ID                                                                |
+| `auth_client_secret`                   | Service token Client Secret                                                            |
+| `service_mode`                         | `warp`, `1dot1`, `proxy`, `tunnelonly`, or `postureonly`                               |
+| `proxy_port`                           | SOCKS proxy port (used only with `proxy` service mode)                                 |
+| `support_url`                          | URL for user support (`https://` or `mailto:`)                                         |
+| `switch_locked`                        | Prevent users from disabling the client                                                |
+| `auto_connect`                         | Auto-reconnect interval in minutes (0–1440)                                            |
+| `onboarding`                           | Show or hide the privacy-policy onboarding screens                                     |
+| `enable_post_quantum`                  | Enable post-quantum key agreement (requires MASQUE)                                    |
+| `warp_tunnel_protocol`                 | `masque` (default) or `wireguard`                                                      |
+| `enable_pmtud`                         | Enable Path MTU Discovery                                                              |
+| `enable_netbt`                         | Enable NetBIOS over TCP/IP (Windows only)                                              |
+| `external_emergency_signal_url`        | HTTPS endpoint for the External Emergency Disconnect signal                            |
+| `external_emergency_signal_fingerprint`| SHA-256 fingerprint validating the emergency signal endpoint                           |
+| `external_emergency_signal_interval`   | Polling frequency in seconds (minimum 30, default 300)                                 |
+| `override_api_endpoint`                | Override the client orchestration API IP                                               |
+| `override_doh_endpoint`                | Override the DoH IP (DNS-only mode)                                                    |
+| `override_warp_endpoint`               | Override the WARP ingress IP and UDP port (e.g., `203.0.113.0:500`)                    |
+
+### Service modes
+
+| Mode          | Description                                              |
+| ------------- | -------------------------------------------------------- |
+| `warp`        | Gateway with WARP — Traffic and DNS (default)            |
+| `1dot1`       | Gateway with DoH — DNS only                              |
+| `proxy`       | Local SOCKS proxy mode                                   |
+| `tunnelonly`  | Traffic only (Secure Web Gateway, no DNS filtering)      |
+| `postureonly` | Posture only — Device information only                   |
+
+## Notes on deprecations
+
+The legacy `enabled` property has been removed. Use `switch_locked` together with `auto_connect` instead. This tool always emits these parameters together (as Cloudflare requires) so output is compatible with current client versions.
 
 ## Usage
 
-1. Open `index.html` in a web browser
-2. **Select your target operating system** (Windows or macOS)
-3. Select deployment type (Single or Multi-Organization)
-4. Configure platform-specific features if needed (Multi-User, Pre-Login for Windows)
-5. Fill in organization settings
-6. Configure optional parameters as needed
-7. Download the generated `mdm.xml` file
-8. Deploy via your MDM solution
-
-### macOS Deployment
-
-For macOS, place the `mdm.xml` file in `/Library/Application Support/Cloudflare/` or convert it to a `.plist` file for deployment via Jamf, Intune, Kandji, or other MDM tools.
+1. Open `index.html` in any modern browser (no build step required).
+2. Choose your **target operating system** and **deployment type**.
+3. Fill in organization settings — the live preview updates as you type.
+4. Configure optional features (emergency disconnect, endpoint overrides, multi-user, pre-login).
+5. **Copy** the XML to clipboard or **Download** `mdm.xml`.
+6. Deploy via your MDM tool to the appropriate path on the target device.
 
 ## Disclaimer
 
-This is an unofficial tool. Always verify generated profiles against the [official Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/deployment/mdm-deployment/) before deploying to production environments.
+This is an unofficial tool. Always verify generated profiles against the [official Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/parameters/) before deploying to production.
 
 ## References
 
-- [MDM Deployment Parameters](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/warp/deployment/mdm-deployment/parameters/)
-- [Windows Multi-User Support](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/warp/deployment/mdm-deployment/windows-multiuser/)
-- [Windows Pre-Login](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/warp/deployment/mdm-deployment/windows-prelogin/)
+- [MDM deployment parameters](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/parameters/)
+- [Managed deployment overview](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/)
+- [Switch between Zero Trust organizations](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/switch-organizations/)
+- [Windows multi-user support](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/windows-multiuser/)
+- [Windows pre-login](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/windows-prelogin/)
 
 ## License
 
